@@ -63,6 +63,31 @@
 .navbar-brand.marca { display: flex; align-items: center; justify-content: flex-start; gap: 10px; font-weight: 800; font-size: 1.2rem; letter-spacing: -.01em; }
 .logo { border-radius: 14px; flex: none; }
 
+/* Botón para plegar la barra lateral a solo íconos: flota fijo sobre el borde
+   derecho de la barra, así siempre queda accesible sea cual sea su ancho
+   (a diferencia de ponerlo junto al logo, que se aprieta cuando se pliega). */
+.btn-colapsar-sidebar {
+  display: none; position: absolute; top: 18px; right: -13px; z-index: 5;
+  width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--rejilla);
+  background: var(--tblr-bg-surface, #fff); color: var(--tinta-suave); cursor: pointer;
+  place-items: center; box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
+}
+.btn-colapsar-sidebar:hover { color: var(--tblr-primary); }
+.btn-colapsar-sidebar .icono { transition: transform .2s ease; }
+[data-bs-sidebar^="folded"] .btn-colapsar-sidebar .icono { transform: rotate(180deg); }
+
+/* Cuando está plegada, el nombre junto al logo se esconde (queda solo el ícono). */
+[data-bs-sidebar^="folded"] .marca-texto { display: none; }
+
+@media (min-width: 992px) {
+  .navbar-vertical { position: relative; }
+  /* Tabler trae este botón oculto (opacity:0, y display:none una vez plegada y
+     sin el mouse encima) para que aparezca recién al pasar el mouse por la
+     barra. Lo dejamos siempre visible en los dos estados: más fácil de
+     encontrar que un botón que solo aparece al pasar el mouse por encima. */
+  .btn-colapsar-sidebar { display: grid !important; opacity: 1 !important; }
+}
+
 .etiqueta-menu {
   margin: 16px 16px 4px; font-size: 11px; font-weight: 600; letter-spacing: .06em;
   text-transform: uppercase; color: var(--tinta-suave);

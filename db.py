@@ -442,8 +442,9 @@ def resumen_mes(mes: str) -> dict:
         for f in por_categoria
     ]
 
+    dias_mes = calendar.monthrange(anio, num_mes)[1]
     totales_por_dia = {f["dia"]: f["total"] for f in por_dia_filas}
-    por_dia = [totales_por_dia.get(d, 0) for d in range(1, transcurridos + 1)]
+    por_dia = [totales_por_dia.get(d, 0) for d in range(1, dias_mes + 1)]
     dia_mayor = None
     if totales_por_dia:
         d = max(totales_por_dia, key=lambda k: (totales_por_dia[k], -k))

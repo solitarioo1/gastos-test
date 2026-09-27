@@ -1,3 +1,4 @@
+import calendar
 import os
 import sys
 import time
@@ -302,9 +303,13 @@ class TestResumen(BaseLogueado):
             self.reg(texto)
         r = self.cli.get("/api/resumen").get_json()
         dia = int(db.hoy()[8:10])
+        anio, mes = int(db.hoy()[:4]), int(db.hoy()[5:7])
+        dias_mes = calendar.monthrange(anio, mes)[1]
         self.assertEqual(r["dias_transcurridos"], dia)
-        self.assertEqual(len(r["por_dia_centimos"]), dia)
+        # El gráfico siempre muestra el mes completo (1 al último día), no solo lo transcurrido.
+        self.assertEqual(len(r["por_dia_centimos"]), dias_mes)
         self.assertEqual(r["por_dia_centimos"][dia - 1], 9000)
+        self.assertEqual(r["por_dia_centimos"][dia:], [0] * (dias_mes - dia))
         self.assertEqual(r["dia_mayor"], {"dia": dia, "total_centimos": 9000})
         self.assertEqual(r["promedio_diario_centimos"], round(9000 / dia))
         self.assertEqual([g["concepto"] for g in r["ultimos"]], ["delivery", "menú", "almuerzo"])
@@ -314,7 +319,7 @@ class TestResumen(BaseLogueado):
         self.assertEqual((r["total_centimos"], r["dias_transcurridos"], r["mes_anterior"]), (0, 31, "2019-12"))
         self.assertIsNone(r["dia_mayor"])
         f = self.cli.get("/api/resumen?mes=2099-05").get_json()
-        self.assertEqual((f["dias_transcurridos"], f["por_dia_centimos"]), (0, []))
+        self.assertEqual((f["dias_transcurridos"], f["por_dia_centimos"]), (0, [0] * 31))
 
     def test_mes_invalido(self):
         self.assertEqual(self.cli.get("/api/resumen?mes=2020-13").status_code, 400)
