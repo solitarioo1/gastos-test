@@ -77,7 +77,8 @@
 [data-bs-sidebar^="folded"] .btn-colapsar-sidebar .icono { transform: rotate(180deg); }
 
 /* Cuando está plegada, el nombre junto al logo se esconde (queda solo el ícono). */
-[data-bs-sidebar^="folded"] .marca-texto { display: none; }
+[data-bs-sidebar^="folded"] .marca-texto,
+[data-bs-sidebar^="folded"] .etiqueta-menu { display: none; }
 
 @media (min-width: 992px) {
   .navbar-vertical { position: relative; }
