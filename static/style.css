@@ -121,6 +121,28 @@
   text-transform: uppercase; color: var(--tinta-suave);
 }
 
+/* Tabler hace crecer cada <ul class="navbar-nav"> para repartirse el alto de
+   la barra completa (así el grupo de abajo queda separado en huecos raros en
+   vez de quedar junto). Lo anulamos: el único hueco debe ser el que "mt-auto"
+   deja antes de .usuario-sidebar, empujando ese grupo entero al fondo. */
+#menu-lateral > .navbar-nav { flex-grow: 0; }
+
+/* Usuario logueado, al fondo de la barra lateral (arriba de "Herramientas"/"Salir"). */
+.usuario-sidebar {
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 8px; padding: 12px 8px 14px;
+  border-top: 1px solid var(--rejilla);
+}
+.usuario-sidebar-icono {
+  display: grid; place-items: center; flex: none;
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(var(--tblr-primary-rgb), .5); color: var(--tblr-primary-fg);
+}
+.usuario-sidebar-nombre {
+  font-weight: 700; font-size: .9rem; color: var(--tblr-body-color);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
 .navbar-vertical .nav-link { border-radius: 10px; margin: 1px 8px; }
 .navbar-vertical .nav-link.active {
   background: rgba(var(--tblr-primary-rgb), .1);

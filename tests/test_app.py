@@ -540,6 +540,20 @@ class TestFijos(BaseLogueado):
             base = {"concepto": "alquiler", "monto": 500, "categoria": "Hogar", "dia": 5}
             self.assertEqual(self.cli.post("/api/fijos", json={**base, **datos}).status_code, 400, datos)
 
+    def test_editar_dia_corrige_marca_de_pagado_fantasma(self):
+        with congelar(2026, 9, 10):
+            # su día (5) ya pasó al crearlo: se marca "pagado" sin generar gasto real
+            fijo = self.crear(5).get_json()
+            self.assertEqual(fijo["ultimo_mes"], "2026-09")
+            self.assertEqual(self.gastos(), [])
+            # al moverle el día a uno que todavía no llega, la marca vieja no debe seguir diciendo "pagado"
+            r = self.cli.patch(f"/api/fijos/{fijo['id']}", json={"dia": 20})
+            self.assertNotEqual(r.get_json()["ultimo_mes"], "2026-09")
+        with congelar(2026, 9, 20):
+            self.cli.get("/api/inicio")
+            (g,) = self.gastos()
+            self.assertEqual(g["fecha"], "2026-09-20")
+
     def test_total_solo_suma_los_activos(self):
         f1 = self.crear(5).get_json()
         self.crear(10, concepto="luz", monto=80)

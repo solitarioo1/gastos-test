@@ -751,8 +751,27 @@ def actualizar_fijo(fijo_id: int, campos: dict) -> dict | None:
             asignaciones = ", ".join(f"{k} = %s" for k in campos)
             cur.execute(f"UPDATE fijos SET {asignaciones} WHERE id = %s RETURNING *", (*campos.values(), fijo_id))
             fila = cur.fetchone()
+            if fila is None:
+                con.commit()
+                return None
+            # Si se cambió el día y el nuevo todavía no llega este mes, la marca de
+            # "ya pagado este mes" puede haber quedado vieja (ej. se creó con un día
+            # que ya había pasado, sin generar gasto todavía). Si de verdad no hay un
+            # gasto de este mes detrás, se corrige para que vuelva a mostrar pendiente.
+            hoy_ = tiempo.hoy()
+            mes = hoy_.strftime("%Y-%m")
+            if "dia" in campos and fila["ultimo_mes"] == mes:
+                dia_efectivo = _dia_efectivo(fila["dia"], hoy_.year, hoy_.month)
+                if dia_efectivo > hoy_.day:
+                    cur.execute("SELECT 1 FROM gastos WHERE fijo_id = %s AND substr(fecha, 1, 7) = %s", (fijo_id, mes))
+                    if cur.fetchone() is None:
+                        cur.execute(
+                            "UPDATE fijos SET ultimo_mes = %s WHERE id = %s RETURNING *",
+                            (_mes_anterior(hoy_.year, hoy_.month), fijo_id),
+                        )
+                        fila = cur.fetchone()
             con.commit()
-            return _fijo(fila) if fila else None
+            return _fijo(fila)
         cur.execute("SELECT * FROM fijos WHERE id = %s", (fijo_id,))
         fila = cur.fetchone()
         return _fijo(fila) if fila else None

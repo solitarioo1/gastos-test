@@ -179,6 +179,7 @@ def create_app(config: dict | None = None) -> Flask:
             "categorias": cats("gasto"),
             "categorias_ingreso": cats("ingreso"),
             "estatico": estatico,
+            "usuario": session.get("usuario"),
         }
 
     @app.after_request

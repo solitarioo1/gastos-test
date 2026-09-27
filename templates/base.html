@@ -55,7 +55,13 @@
             </li>
             {% endfor %}
           </ul>
-          <div class="etiqueta-menu">Herramientas</div>
+          {% if usuario %}
+          <div class="usuario-sidebar mt-auto">
+            <span class="usuario-sidebar-icono">{{ icono('persona', 18) }}</span>
+            <span class="usuario-sidebar-nombre nav-link-title">{{ usuario }}</span>
+          </div>
+          {% endif %}
+          <div class="etiqueta-menu{% if not usuario %} mt-auto{% endif %}">Herramientas</div>
           <ul class="navbar-nav">
             <li class="nav-item">
               <a class="nav-link {% if pagina == 'historial' %}active{% endif %}" href="{{ url_for('historial') }}" {% if pagina == 'historial' %}aria-current="page"{% endif %}>
@@ -76,7 +82,7 @@
               </button>
             </li>
           </ul>
-          <ul class="navbar-nav mt-auto">
+          <ul class="navbar-nav">
             <li class="nav-item">
               <form method="post" action="{{ url_for('logout') }}">
                 <button class="nav-link w-100 border-0 bg-transparent text-start" type="submit">
