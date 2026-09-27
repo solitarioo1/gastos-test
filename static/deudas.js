@@ -97,16 +97,18 @@ $("form-deuda").addEventListener("submit", async (ev) => {
     tipo: tipoNuevo,
     persona: $("d-persona").value.trim(),
     monto: $("d-monto").value,
+    fecha: $("d-fecha").value,
     nota: $("d-nota").value.trim(),
   };
-  if (!cuerpo.persona || !(parseFloat(cuerpo.monto) > 0)) {
-    error.textContent = "Escribe el nombre y un monto mayor a cero.";
+  if (!cuerpo.persona || !(parseFloat(cuerpo.monto) > 0) || !cuerpo.fecha) {
+    error.textContent = "Escribe el nombre, un monto mayor a cero y la fecha.";
     error.hidden = false;
     return;
   }
   try {
     await api("/api/deudas", { method: "POST", body: cuerpo });
     ev.target.reset();
+    $("d-fecha").value = window.TG.hoy;
     aviso("Deuda anotada.");
     await cargar();
     $("d-persona").focus();
@@ -117,4 +119,5 @@ $("form-deuda").addEventListener("submit", async (ev) => {
 });
 
 elegirTipo("me_deben");
+$("d-fecha").value = window.TG.hoy;
 cargar().catch((e) => aviso(e.message, { error: true }));

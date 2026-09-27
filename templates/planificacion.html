@@ -51,7 +51,13 @@
     </div>
 
     <div class="card">
-      <div class="card-header"><h3 class="card-title">Tus gastos fijos</h3></div>
+      <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h3 class="card-title mb-0">Tus gastos fijos</h3>
+        <div class="text-end">
+          <div class="text-secondary small">Total al mes</div>
+          <div class="fw-bold" id="fijos-total">S/ 0.00</div>
+        </div>
+      </div>
       <ul class="list-group list-group-flush" id="lista-fijos"></ul>
       <div class="estado-vacio" id="fijos-vacio" hidden>
         <div class="estado-vacio-icono">{{ icono('planificacion', 28) }}</div>

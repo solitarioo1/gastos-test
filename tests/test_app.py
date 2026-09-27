@@ -267,6 +267,16 @@ class TestMovimientos(BaseLogueado):
         self.assertEqual([m["concepto"] for m in por_categoria], ["taxi"])
         self.assertEqual(self.cli.get("/api/movimientos?mes=2020-01").get_json()["items"], [])
 
+    def test_categoria_que_mas_pesa_vs_mas_frecuente(self):
+        """Son cosas distintas: una pesa más en soles, la otra se repite más seguido."""
+        self.cli.post("/api/gastos", json={"concepto": "alquiler", "monto": 100, "categoria": "Hogar"})
+        for i in range(3):
+            self.cli.post("/api/gastos", json={"concepto": f"cafe{i}", "monto": 10, "categoria": "Comida"})
+        r = self.cli.get("/api/movimientos").get_json()["resumen"]
+        self.assertEqual((r["mayor_categoria"], r["mayor_categoria_centimos"]), ("Hogar", 10000))
+        self.assertEqual((r["categoria_frecuente"], r["categoria_frecuente_n"]), ("Comida", 3))
+        self.assertEqual(r["promedio_centimos"], 3250)
+
     def test_busqueda_trata_porcentaje_como_texto(self):
         self.reg("descuento 50% tienda 20")
         self.reg("almuerzo 18")
@@ -539,12 +549,57 @@ class TestFijos(BaseLogueado):
         fijo = self.crear(15).get_json()
         r = self.cli.patch(f"/api/fijos/{fijo['id']}", json={"monto": 550, "dia": 20})
         self.assertEqual((r.get_json()["monto_centimos"], r.get_json()["dia"]), (55000, 20))
-        self.assertEqual(len(self.cli.get("/api/fijos").get_json()), 1)
+        self.assertEqual(len(self.cli.get("/api/fijos").get_json()["items"]), 1)
         self.assertEqual(self.cli.delete(f"/api/fijos/{fijo['id']}").status_code, 204)
         self.assertEqual(self.cli.delete(f"/api/fijos/{fijo['id']}").status_code, 404)
         for datos in [{"dia": 0}, {"dia": 32}, {"dia": "x"}, {"categoria": "Inventada"}, {"concepto": ""}]:
             base = {"concepto": "alquiler", "monto": 500, "categoria": "Hogar", "dia": 5}
             self.assertEqual(self.cli.post("/api/fijos", json={**base, **datos}).status_code, 400, datos)
+
+    def test_total_solo_suma_los_activos(self):
+        f1 = self.crear(5).get_json()
+        self.crear(10, concepto="luz", monto=80)
+        self.cli.patch(f"/api/fijos/{f1['id']}", json={"activo": False})
+        self.assertEqual(self.cli.get("/api/fijos").get_json()["total_centimos"], 8000)
+
+    def test_pagar_ahora_sin_esperar_el_dia(self):
+        with congelar(2026, 9, 1):
+            fijo = self.crear(28).get_json()
+            r = self.cli.post(f"/api/fijos/{fijo['id']}/pagar")
+            self.assertEqual(r.status_code, 201)
+            self.assertEqual(r.get_json()["gasto"]["fecha"], "2026-09-01")
+            (g,) = self.gastos()
+            self.assertEqual(g["monto_centimos"], 50000)
+            # ya pagado este mes: no se genera de nuevo el día que le tocaba
+            self.cli.get("/api/inicio")
+            self.assertEqual(len(self.gastos()), 1)
+            # y no se puede volver a pagar el mismo mes
+            self.assertEqual(self.cli.post(f"/api/fijos/{fijo['id']}/pagar").status_code, 409)
+        with congelar(2026, 10, 1):
+            self.assertEqual(self.cli.post(f"/api/fijos/{fijo['id']}/pagar").status_code, 201)
+
+    def test_pagar_ahora_fijo_inexistente(self):
+        self.assertEqual(self.cli.post("/api/fijos/9999/pagar").status_code, 404)
+
+    def test_historial_fijo(self):
+        with congelar(2026, 8, 1):
+            fijo = self.crear(15).get_json()
+        with congelar(2026, 8, 15):
+            self.cli.get("/api/inicio")
+        with congelar(2026, 9, 15):
+            self.cli.get("/api/inicio")
+        with congelar(2026, 10, 1):
+            historial = self.cli.get(f"/api/fijos/{fijo['id']}/historial").get_json()
+        self.assertEqual([h["fecha"] for h in historial], ["2026-09-15", "2026-08-15"])
+        self.assertTrue(all(h["monto_centimos"] == 50000 for h in historial))
+
+    def test_borrar_fijo_no_borra_su_historial(self):
+        with congelar(2026, 9, 1):
+            fijo = self.crear(2).get_json()
+        with congelar(2026, 9, 2):
+            self.cli.get("/api/inicio")
+        self.cli.delete(f"/api/fijos/{fijo['id']}")
+        self.assertEqual(len(self.gastos()), 1)
 
 
 class TestDeudas(BaseLogueado):
@@ -601,6 +656,14 @@ class TestDeudas(BaseLogueado):
     def test_validaciones(self):
         for extra in [{"tipo": "otra"}, {"persona": ""}, {"monto": 0}, {"monto": "x"}, {"fecha": "2999-01-01"}]:
             self.assertEqual(self.crear(**extra).status_code, 400, extra)
+
+    def test_prestamo_con_fecha_pasada_no_ensucia_el_mes_actual(self):
+        """Un préstamo de un mes anterior no debe aparecer como gasto del mes actual."""
+        self.crear(fecha="2026-07-15")
+        gastos_julio = self.cli.get("/api/movimientos?mes=2026-07").get_json()["items"]
+        self.assertEqual([(g["concepto"], g["fecha"]) for g in gastos_julio], [("Préstamo a Juan", "2026-07-15")])
+        gastos_mes_actual = self.cli.get("/api/movimientos").get_json()["items"]
+        self.assertEqual(gastos_mes_actual, [])
 
 
 class TestCategorias(BaseLogueado):

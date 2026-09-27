@@ -1,6 +1,21 @@
 const $ = (id) => document.getElementById(id);
 const NS_SVG = "http://www.w3.org/2000/svg";
 
+// ---------- Barra lateral plegable ----------
+// Tabler siempre pliega a "folded-hover" (se expande encima del contenido al
+// pasar el mouse). Se prefiere fijo: sin esa animación, solo clic para
+// plegar/desplegar. Este listener corre DESPUÉS del de Tabler (que ya dejó el
+// atributo puesto) y lo cambia de "folded-hover" a "folded" a secas.
+document.addEventListener("click", (ev) => {
+  if (!ev.target.closest('[data-bs-toggle="sidebar-folded"]')) return;
+  if (document.documentElement.getAttribute("data-bs-sidebar") === "folded-hover") {
+    document.documentElement.setAttribute("data-bs-sidebar", "folded");
+    try {
+      localStorage.setItem("tabler-sidebar", "folded");
+    } catch (e) {}
+  }
+});
+
 // ---------- Formato ----------
 
 function soles(centimos) {

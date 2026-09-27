@@ -15,8 +15,8 @@
         var t = localStorage.getItem("tema");
         if (!t && window.matchMedia && matchMedia("(prefers-color-scheme: dark)").matches) t = "dark";
         if (t) document.documentElement.setAttribute("data-bs-theme", t);
-        if (localStorage.getItem("tabler-sidebar") === "folded-hover") {
-          document.documentElement.setAttribute("data-bs-sidebar", "folded-hover");
+        if (localStorage.getItem("tabler-sidebar") === "folded") {
+          document.documentElement.setAttribute("data-bs-sidebar", "folded");
         }
       } catch (e) {}
     })();

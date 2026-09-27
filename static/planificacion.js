@@ -177,17 +177,78 @@ async function cargarTopes() {
 
 // ---------- Gastos fijos ----------
 
+const raiz = $("planificacion");
+const mesActual = raiz.dataset.mesActual;
 const selFijo = $("fijo-categoria");
 const rellenarFijo = prepararSelectCategoria(selFijo, "gasto", { sinClasificar: false, valor: "Hogar" });
+
+// Mientras escribes el concepto, se sugiere la categoría sola (tú puedes cambiarla).
+let temporizadorSugerenciaFijo = null;
+$("fijo-concepto").addEventListener("input", (ev) => {
+  clearTimeout(temporizadorSugerenciaFijo);
+  const concepto = ev.target.value.trim();
+  if (concepto.length < 3) return;
+  temporizadorSugerenciaFijo = setTimeout(async () => {
+    try {
+      const r = await api(`/api/sugerir?tipo=gasto&concepto=${encodeURIComponent(concepto)}`);
+      if (r.categoria) selFijo.value = r.categoria;
+    } catch (e) {}
+  }, 250);
+});
+
+async function alternarHistorialFijo(f, contenedor, boton) {
+  if (contenedor.childElementCount > 0) {
+    contenedor.replaceChildren();
+    boton.textContent = "Ver historial";
+    return;
+  }
+  boton.textContent = "Ocultando…";
+  const meses = await api("/api/fijos/" + f.id + "/historial");
+  contenedor.replaceChildren();
+  if (meses.length === 0) {
+    contenedor.append(crear("div", "text-secondary small", "Todavía no se pagó ninguna vez."));
+  } else {
+    meses.forEach((m) => {
+      const fila = crear("div", "fijo-historial-item");
+      fila.append(crear("span", "", nombreMes(m.fecha.slice(0, 7), true)), crear("span", "monto", soles(m.monto_centimos)));
+      contenedor.append(fila);
+    });
+  }
+  boton.textContent = "Ocultar historial";
+}
 
 function filaFijo(f) {
   const li = crear("li", "list-group-item" + (f.activo ? "" : " fijo-inactivo"));
   const fila = crear("div", "fila-datos");
   const izq = crear("div");
-  izq.append(
-    crear("div", "fw-bold text-break", f.concepto),
-    crear("div", "text-secondary small", `${f.categoria} · se anota el día ${f.dia} de cada mes`)
-  );
+  const pagadoEsteMes = f.ultimo_mes === mesActual;
+  const linea2 = crear("div", "text-secondary small", `${f.categoria} · se anota el día ${f.dia} de cada mes`);
+  izq.append(crear("div", "fw-bold text-break", f.concepto), linea2);
+  if (f.activo) {
+    const estado = crear("div", "mt-1 d-flex align-items-center gap-2 flex-wrap");
+    estado.append(crear("span", "chip " + (pagadoEsteMes ? "chip-pagado" : "chip-pendiente"), pagadoEsteMes ? "Pagado este mes" : "Pendiente este mes"));
+    if (!pagadoEsteMes) {
+      const pagar = crear("button", "chip-enlace", "Pagar ahora");
+      pagar.type = "button";
+      pagar.addEventListener("click", async () => {
+        try {
+          await api("/api/fijos/" + f.id + "/pagar", { method: "POST" });
+          aviso(`Pagado: ${f.concepto}.`);
+          await cargarFijos();
+        } catch (e) {
+          aviso(e.message, { error: true });
+        }
+      });
+      estado.append(pagar);
+    }
+    izq.append(estado);
+  }
+  const historialCont = crear("div", "fijo-historial");
+  const verHistorial = crear("button", "fijo-ver-historial mt-1", "Ver historial");
+  verHistorial.type = "button";
+  verHistorial.addEventListener("click", () => alternarHistorialFijo(f, historialCont, verHistorial));
+  izq.append(verHistorial, historialCont);
+
   const der = crear("div", "d-flex align-items-center gap-2");
   der.append(crear("div", "monto", soles(f.monto_centimos)));
 
@@ -239,11 +300,12 @@ function filaFijo(f) {
 }
 
 async function cargarFijos() {
-  const fijos = await api("/api/fijos");
+  const { items: fijos, total_centimos } = await api("/api/fijos");
   const lista = $("lista-fijos");
   lista.replaceChildren();
   $("fijos-vacio").hidden = fijos.length > 0;
   fijos.forEach((f) => lista.append(filaFijo(f)));
+  $("fijos-total").textContent = soles(total_centimos);
 }
 
 $("form-fijo").addEventListener("submit", async (ev) => {

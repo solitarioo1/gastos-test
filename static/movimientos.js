@@ -29,8 +29,16 @@ function pintarResumen(r) {
   $("res-etiqueta").textContent = `${esGasto ? "Gastado" : "Ingresado"} en ${nombreMes(r.mes, true)}`;
   $("res-total").textContent = soles(r.total_centimos);
   $("res-n").textContent = r.n;
+  $("res-promedio").textContent = r.n ? `${soles(r.promedio_centimos)} por movimiento` : "";
   $("res-mayor-etiqueta").textContent = esGasto ? "Categoría que más pesa" : "Ingreso principal";
   $("res-mayor").textContent = r.mayor_categoria || "—";
+  $("res-mayor-monto").textContent = r.mayor_categoria ? soles(r.mayor_categoria_centimos) : "";
+  $("res-frecuente").textContent = r.categoria_frecuente || "—";
+  $("res-frecuente-n").textContent = r.categoria_frecuente
+    ? r.categoria_frecuente_n === 1
+      ? "1 vez"
+      : `${r.categoria_frecuente_n} veces`
+    : "";
 
   const anterior = nombreMes(r.mes_anterior, false);
   let texto = "";

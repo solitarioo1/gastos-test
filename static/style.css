@@ -255,6 +255,19 @@ body.menu-movil-abierto .fondo-menu-movil { opacity: 1; visibility: visible; tra
 .cifra-grande { font-size: 2rem; font-weight: 700; line-height: 1.2; }
 .cifra-mediana { font-size: 1.5rem; font-weight: 600; line-height: 1.3; }
 .cifra { font-size: 1.25rem; font-weight: 600; line-height: 1.3; }
+@media (max-width: 575.98px) {
+  /* En celular, las tarjetas de KPI quedan angostas (2 por fila): números y
+     nombres de categoría largos se distorsionan si se quedan al tamaño de
+     escritorio. */
+  .hero { font-size: 2.2rem; }
+  .cifra-grande { font-size: 1.5rem; }
+  .cifra-mediana { font-size: 1.15rem; }
+  .cifra { font-size: 1.05rem; }
+  /* La fecha del encabezado (bajo el título) se apretaba en una columna angosta
+     porque compartía fila con el navegador de mes (< mes >) — se bajan de fila. */
+  .page-header .row { flex-wrap: wrap; }
+  .page-header .col-auto { flex: 1 1 100%; margin-left: 0 !important; margin-top: 8px; }
+}
 .monto { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
 .monto-ingreso { color: var(--ingreso); }
 
@@ -358,6 +371,11 @@ body.menu-movil-abierto .fondo-menu-movil { opacity: 1; visibility: visible; tra
 .chip.chip-pendiente { background: rgba(245, 159, 0, .18); color: #8a5a00; font-weight: 600; text-decoration: none; }
 [data-bs-theme="dark"] .chip.chip-pendiente { color: #f7c766; }
 .chip.chip-propia { background: rgba(var(--azul-rgb), .12); color: var(--azul); font-weight: 600; }
+.chip.chip-pagado { background: rgba(var(--bien-rgb), .14); color: var(--bien); font-weight: 600; }
+
+.fijo-historial { margin-top: 8px; padding-left: 2px; }
+.fijo-historial-item { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; color: var(--tinta-suave); }
+.fijo-ver-historial { font-size: 13px; font-weight: 600; color: var(--azul); background: none; border: 0; padding: 0; cursor: pointer; }
 
 .tarjeta-hero {
   background: linear-gradient(135deg, var(--hero-desde), var(--hero-hasta));

@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS gastos (
     monto_centimos INTEGER NOT NULL CHECK (monto_centimos > 0),
     categoria TEXT NOT NULL,
     categoria_auto TEXT NOT NULL,
-    creado TEXT NOT NULL
+    creado TEXT NOT NULL,
+    fijo_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_gastos_fecha ON gastos (fecha);
 
@@ -96,6 +97,8 @@ UPDATE ingresos SET categoria = 'Sin clasificar' WHERE categoria IN ('Otros', 'O
 UPDATE ingresos SET categoria_auto = 'Sin clasificar' WHERE categoria_auto IN ('Otros', 'Otros ingresos');
 DELETE FROM topes WHERE categoria = 'Otros';
 UPDATE fijos SET categoria = 'Sin clasificar' WHERE categoria = 'Otros';
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS fijo_id INTEGER;
+CREATE INDEX IF NOT EXISTS idx_gastos_fijo ON gastos (fijo_id);
 """
 
 TABLAS = ("gastos", "ingresos")
@@ -212,15 +215,19 @@ def _fila(r) -> dict:
 # ---------- Movimientos (gastos e ingresos) ----------
 
 def _insertar(con, tabla: str, texto: str, concepto: str, monto_centimos: int,
-              categoria: str, fecha: str | None, categoria_auto: str | None = None) -> dict:
+              categoria: str, fecha: str | None, categoria_auto: str | None = None,
+              fijo_id: int | None = None) -> dict:
     tabla = _tabla(tabla)
+    campos = "(fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado)"
+    marcas = "(%s, %s, %s, %s, %s, %s, %s)"
+    valores = [fecha or hoy(), texto, concepto, monto_centimos, categoria, categoria_auto or categoria,
+               tiempo.ahora().isoformat(timespec="microseconds")]
+    if fijo_id is not None:
+        campos = "(fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado, fijo_id)"
+        marcas = "(%s, %s, %s, %s, %s, %s, %s, %s)"
+        valores.append(fijo_id)
     with con.cursor() as cur:
-        cur.execute(
-            f"INSERT INTO {tabla} (fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado)"
-            " VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *",
-            (fecha or hoy(), texto, concepto, monto_centimos, categoria, categoria_auto or categoria,
-             tiempo.ahora().isoformat(timespec="microseconds")),
-        )
+        cur.execute(f"INSERT INTO {tabla} {campos} VALUES {marcas} RETURNING *", valores)
         return _fila(cur.fetchone())
 
 
@@ -340,22 +347,30 @@ def total(tabla: str, mes: str | None = None, dia: str | None = None) -> tuple[i
 
 
 def resumen_movimientos(tabla: str, mes: str) -> dict:
-    """Tarjeta de cabecera de Movimientos: total, cantidad, mayor categoría y mes anterior."""
+    """Tarjeta de cabecera de Movimientos: total, cantidad, promedio por
+    movimiento, categoría que más pesa (por monto), categoría más frecuente
+    (por cantidad de movimientos) y comparación con el mes anterior."""
     anio, num = int(mes[:4]), int(mes[5:7])
     anterior = _mes_anterior(anio, num)
     with closing(conectar()) as con, con.cursor() as cur:
         cur.execute(
-            f"SELECT categoria, SUM(monto_centimos) AS t FROM {_tabla(tabla)}"
-            " WHERE substr(fecha, 1, 7) = %s GROUP BY categoria ORDER BY t DESC LIMIT 1",
+            f"SELECT categoria, SUM(monto_centimos) AS monto, COUNT(*) AS n FROM {_tabla(tabla)}"
+            " WHERE substr(fecha, 1, 7) = %s GROUP BY categoria",
             (mes,),
         )
-        mayor = cur.fetchone()
+        filas = cur.fetchall()
+    mayor_monto = max(filas, key=lambda f: f["monto"]) if filas else None
+    mayor_frecuencia = max(filas, key=lambda f: f["n"]) if filas else None
     suma, cantidad = total(tabla, mes=mes)
     return {
         "mes": mes,
         "total_centimos": suma,
         "n": cantidad,
-        "mayor_categoria": mayor["categoria"] if mayor else None,
+        "promedio_centimos": round(suma / cantidad) if cantidad else 0,
+        "mayor_categoria": mayor_monto["categoria"] if mayor_monto else None,
+        "mayor_categoria_centimos": mayor_monto["monto"] if mayor_monto else 0,
+        "categoria_frecuente": mayor_frecuencia["categoria"] if mayor_frecuencia else None,
+        "categoria_frecuente_n": mayor_frecuencia["n"] if mayor_frecuencia else 0,
         "mes_anterior": anterior,
         "total_mes_anterior_centimos": total(tabla, mes=anterior)[0],
     }
@@ -769,10 +784,48 @@ def borrar_fijo(fijo_id: int) -> bool:
         if fila is None:
             return False
         _registrar_borrado(con, "fijo", fila["concepto"], fila["categoria"], fila["monto_centimos"])
+        cur.execute("UPDATE gastos SET fijo_id = NULL WHERE fijo_id = %s", (fijo_id,))
         cur.execute("DELETE FROM fijos WHERE id = %s", (fijo_id,))
         borrado = cur.rowcount > 0
         con.commit()
         return borrado
+
+
+def total_fijos() -> int:
+    """Suma mensual comprometida en gastos fijos activos."""
+    with closing(conectar()) as con, con.cursor() as cur:
+        cur.execute("SELECT COALESCE(SUM(monto_centimos), 0) AS s FROM fijos WHERE activo = 1")
+        return cur.fetchone()["s"]
+
+
+def pagar_fijo_ahora(fijo_id: int) -> dict | None:
+    """Genera ya mismo el gasto de este mes para un fijo puntual, sin esperar a que llegue su día."""
+    hoy_ = tiempo.hoy()
+    mes = hoy_.strftime("%Y-%m")
+    with closing(conectar()) as con, con.cursor() as cur:
+        cur.execute("SELECT * FROM fijos WHERE id = %s", (fijo_id,))
+        f = cur.fetchone()
+        if f is None:
+            return None
+        if f["ultimo_mes"] == mes:
+            raise ValueError("Este gasto fijo ya se pagó este mes.")
+        gasto = _insertar(con, "gastos", f"Gasto fijo: {f['concepto']}", f["concepto"], f["monto_centimos"],
+                          f["categoria"], hoy(), fijo_id=fijo_id)
+        cur.execute("UPDATE fijos SET ultimo_mes = %s WHERE id = %s RETURNING *", (mes, fijo_id))
+        actualizado = cur.fetchone()
+        con.commit()
+        return {"fijo": _fijo(actualizado), "gasto": gasto}
+
+
+def historial_fijo(fijo_id: int, limite: int = 24) -> list[dict]:
+    """Meses en los que se pagó este gasto fijo (más recientes primero)."""
+    with closing(conectar()) as con, con.cursor() as cur:
+        cur.execute(
+            "SELECT id, fecha, monto_centimos, creado FROM gastos WHERE fijo_id = %s"
+            " ORDER BY fecha DESC, id DESC LIMIT %s",
+            (fijo_id, limite),
+        )
+        return [dict(f) for f in cur.fetchall()]
 
 
 def generar_fijos() -> int:
@@ -802,7 +855,7 @@ def generar_fijos() -> int:
                     continue
                 fecha = f"{mes}-{dia:02d}"
                 _insertar(con, "gastos", f"Gasto fijo: {f['concepto']}", f["concepto"], f["monto_centimos"],
-                          f["categoria"], fecha)
+                          f["categoria"], fecha, fijo_id=f["id"])
                 cur.execute("UPDATE fijos SET ultimo_mes = %s WHERE id = %s", (mes, f["id"]))
                 creados += 1
         con.commit()

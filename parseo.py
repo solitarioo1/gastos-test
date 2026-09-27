@@ -96,7 +96,9 @@ PALABRAS_CLAVE = {
         "cine", "netflix", "spotify", "disney", "hbo", "prime", "youtube",
         "salida", "cerveza", "chela", "chelas", "bar", "discoteca", "fiesta",
         "concierto", "juego", "steam", "playstation", "karaoke", "trago",
-        "pisco",
+        "pisco", "suscripcion", "claude", "chatgpt", "openai", "canva",
+        "gimnasio", "gym", "cancha", "partido", "futbol", "voley", "basquet",
+        "polideportivo", "deporte", "fulbito",
     ],
     "Mercado": [
         "mercado", "bodega", "super", "supermercado", "wong", "plazavea",

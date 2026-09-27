@@ -101,6 +101,13 @@ class TestCategorias(unittest.TestCase):
         self.assertCategoria("multa 90", "Trámites y multas")
         self.assertCategoria("junta 100", "Ahorro y juntas")
 
+    def test_suscripciones_y_deporte_son_ocio(self):
+        self.assertCategoria("claude plan 60", "Ocio")
+        self.assertCategoria("suscripción chatgpt 80", "Ocio")
+        self.assertCategoria("partido fin de semana 20", "Ocio")
+        self.assertCategoria("cancha fulbito 15", "Ocio")
+        self.assertCategoria("gimnasio 90", "Ocio")
+
 
 HOY = date(2026, 9, 26)
 

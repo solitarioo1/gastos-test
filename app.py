@@ -524,7 +524,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/api/fijos")
     @api
     def listar_fijos():
-        return jsonify(db.listar_fijos())
+        return jsonify(items=db.listar_fijos(), total_centimos=db.total_fijos())
 
     @app.post("/api/fijos")
     @api
@@ -550,6 +550,22 @@ def create_app(config: dict | None = None) -> Flask:
         if not db.borrar_fijo(fijo_id):
             return jsonify(error="No existe."), 404
         return "", 204
+
+    @app.post("/api/fijos/<int:fijo_id>/pagar")
+    @api
+    def pagar_fijo(fijo_id):
+        try:
+            resultado = db.pagar_fijo_ahora(fijo_id)
+        except ValueError as e:
+            return jsonify(error=str(e)), 409
+        if resultado is None:
+            return jsonify(error="No existe."), 404
+        return jsonify(resultado), 201
+
+    @app.get("/api/fijos/<int:fijo_id>/historial")
+    @api
+    def historial_fijo(fijo_id):
+        return jsonify(db.historial_fijo(fijo_id))
 
     # ---------- API: deudas ----------
 
