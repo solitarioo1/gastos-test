@@ -416,11 +416,15 @@ function pintarFijos(r) {
   }
 }
 
+let anotadosExpandido = false;
+const LIMITE_ANOTADOS = 4;
+
 function pintarAnotados(r) {
   const lista = $("anotados");
   lista.replaceChildren();
   $("anotados-vacio").hidden = r.anotados_hoy.length > 0;
-  for (const m of r.anotados_hoy) {
+  const items = anotadosExpandido ? r.anotados_hoy : r.anotados_hoy.slice(0, LIMITE_ANOTADOS);
+  for (const m of items) {
     const esIngreso = m.tipo === "ingreso";
     const li = crear("li", "list-group-item");
     const fila = crear("div", "fila-datos");
@@ -448,6 +452,31 @@ function pintarAnotados(r) {
     li.append(fila);
     lista.append(li);
   }
+  const restantes = r.anotados_hoy.length - LIMITE_ANOTADOS;
+  if (restantes > 0) {
+    const li = crear("li", "list-group-item text-center");
+    const boton = crear("button", "btn btn-link btn-sm", anotadosExpandido ? "Ver menos" : `Ver ${restantes} más`);
+    boton.type = "button";
+    boton.addEventListener("click", () => {
+      anotadosExpandido = !anotadosExpandido;
+      pintarAnotados(r);
+    });
+    li.append(boton);
+    lista.append(li);
+  }
+}
+
+// "Repetir con un toque" y "Se vienen estos pagos" comparten fila a media
+// pantalla cada uno; si solo uno de los dos tiene datos, que ocupe todo el
+// ancho en vez de dejar la mitad de la fila vacía.
+function ajustarAnchoBloques() {
+  const frecuentes = $("bloque-frecuentes");
+  const fijos = $("bloque-fijos");
+  const ambos = !frecuentes.hidden && !fijos.hidden;
+  for (const el of [frecuentes, fijos]) {
+    el.classList.toggle("col-lg-6", ambos);
+    el.classList.toggle("col-12", !ambos);
+  }
 }
 
 async function cargar() {
@@ -458,6 +487,7 @@ async function cargar() {
   pintarAlertas(r);
   pintarFrecuentes(r);
   pintarFijos(r);
+  ajustarAnchoBloques();
   pintarAnotados(r);
 }
 
