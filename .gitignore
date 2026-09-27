@@ -10,5 +10,6 @@ __pycache__/
 *.pyc
 .venv/
 
-# Notas de negocio (privado, no sube a GitHub)
+# Notas de negocio y de contexto (privado, no sube a GitHub)
 plan.md
+CLAUDE.md
