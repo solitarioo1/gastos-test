@@ -21,11 +21,14 @@
 
   <div class="col-12">
     <div class="card">
-      <div class="card-header"><h3 class="card-title">Anotar una deuda</h3></div>
+      <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h3 class="card-title mb-0" id="deuda-form-titulo">Anotar una deuda</h3>
+        <button type="button" class="btn btn-sm" id="deuda-cancelar" hidden>Cancelar</button>
+      </div>
       <div class="card-body">
         <form id="form-deuda" class="row g-2 align-items-end" novalidate>
           <div class="col-12">
-            <div class="segmentado" role="radiogroup" aria-label="¿Quién debe?">
+            <div class="segmentado" role="radiogroup" aria-label="¿Quién debe?" id="deuda-tipo-selector">
               <button type="button" role="radio" data-tipo="me_deben" aria-checked="true">Me deben</button>
               <button type="button" role="radio" data-tipo="debo" aria-checked="false">Yo debo</button>
             </div>
@@ -47,7 +50,7 @@
             <input id="d-nota" class="form-control" maxlength="120" placeholder="Para el pasaje" autocomplete="off">
           </div>
           <div class="col-12 col-md-1">
-            <button type="submit" class="btn btn-primary w-100">Guardar</button>
+            <button type="submit" class="btn btn-primary w-100" id="deuda-boton-guardar">Guardar</button>
           </div>
         </form>
         <div id="d-error" class="text-danger mt-2" role="alert" hidden></div>

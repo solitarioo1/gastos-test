@@ -46,14 +46,27 @@ function filaDeuda(d) {
     });
     der.append(pagar);
   }
+  if (!pagada) {
+    const editar = crear("button", "btn btn-icon btn-sm btn-ghost-secondary");
+    editar.type = "button";
+    editar.setAttribute("aria-label", `Editar deuda de ${d.persona}`);
+    editar.append(icono("editar", 16));
+    editar.addEventListener("click", () => entrarModoEdicionDeuda(d));
+    der.append(editar);
+  }
+
   const borrar = crear("button", "btn btn-icon btn-sm btn-ghost-danger");
   borrar.type = "button";
   borrar.setAttribute("aria-label", `Borrar deuda de ${d.persona}`);
   borrar.append(icono("borrar", 16));
   borrar.addEventListener("click", async () => {
-    if (!confirm(`¿Borrar la deuda de ${d.persona} por ${soles(d.monto_centimos)}? Los movimientos ya anotados no se borran.`)) return;
+    const advertencia = pagada
+      ? `¿Borrar la deuda de ${d.persona} por ${soles(d.monto_centimos)}? Los movimientos ya anotados no se borran.`
+      : `¿Borrar la deuda de ${d.persona} por ${soles(d.monto_centimos)}? Como aún no te la pagan, esto también borra el gasto que anotó.`;
+    if (!confirm(advertencia)) return;
     try {
       await api("/api/deudas/" + d.id, { method: "DELETE" });
+      if (editandoDeudaId === d.id) salirModoEdicionDeuda();
       aviso("Deuda borrada.");
       await cargar();
     } catch (e) {
@@ -83,31 +96,71 @@ async function cargar() {
 
 verPagadas.addEventListener("change", cargar);
 
+// ---------- Edición ----------
+
+let editandoDeudaId = null;
+const formDeuda = $("form-deuda");
+const botonGuardarDeuda = $("deuda-boton-guardar");
+const botonCancelarDeuda = $("deuda-cancelar");
+const tituloFormDeuda = $("deuda-form-titulo");
+const selectorTipoDeuda = $("deuda-tipo-selector");
+
+function entrarModoEdicionDeuda(d) {
+  editandoDeudaId = d.id;
+  elegirTipo(d.tipo);
+  $("d-persona").value = d.persona;
+  $("d-monto").value = d.monto_centimos / 100;
+  $("d-fecha").value = d.fecha;
+  $("d-nota").value = d.nota || "";
+  selectorTipoDeuda.querySelectorAll("[role=radio]").forEach((b) => (b.disabled = true));
+  tituloFormDeuda.textContent = `Editando la deuda de «${d.persona}»`;
+  botonGuardarDeuda.textContent = "Guardar cambios";
+  botonCancelarDeuda.hidden = false;
+  formDeuda.closest(".card").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("d-persona").focus();
+}
+
+function salirModoEdicionDeuda() {
+  editandoDeudaId = null;
+  formDeuda.reset();
+  elegirTipo("me_deben");
+  selectorTipoDeuda.querySelectorAll("[role=radio]").forEach((b) => (b.disabled = false));
+  $("d-fecha").value = window.TG.hoy;
+  tituloFormDeuda.textContent = "Anotar una deuda";
+  botonGuardarDeuda.textContent = "Guardar";
+  botonCancelarDeuda.hidden = true;
+}
+
+botonCancelarDeuda.addEventListener("click", salirModoEdicionDeuda);
+
 // ---------- Formulario ----------
 
-$("form-deuda").addEventListener("submit", async (ev) => {
+formDeuda.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const error = $("d-error");
   error.hidden = true;
-  const cuerpo = {
-    tipo: tipoNuevo,
-    persona: $("d-persona").value.trim(),
-    monto: $("d-monto").value,
-    fecha: $("d-fecha").value,
-    nota: $("d-nota").value.trim(),
-  };
-  if (!cuerpo.persona || !(parseFloat(cuerpo.monto) > 0) || !cuerpo.fecha) {
+  const persona = $("d-persona").value.trim();
+  const monto = $("d-monto").value;
+  const fecha = $("d-fecha").value;
+  const nota = $("d-nota").value.trim();
+  if (!persona || !(parseFloat(monto) > 0) || !fecha) {
     error.textContent = "Escribe el nombre, un monto mayor a cero y la fecha.";
     error.hidden = false;
     return;
   }
   try {
-    await api("/api/deudas", { method: "POST", body: cuerpo });
-    ev.target.reset();
-    $("d-fecha").value = window.TG.hoy;
-    aviso("Deuda anotada.");
+    if (editandoDeudaId) {
+      await api("/api/deudas/" + editandoDeudaId, { method: "PATCH", body: { persona, monto, fecha, nota } });
+      aviso("Deuda actualizada.");
+      salirModoEdicionDeuda();
+    } else {
+      await api("/api/deudas", { method: "POST", body: { tipo: tipoNuevo, persona, monto, fecha, nota } });
+      ev.target.reset();
+      $("d-fecha").value = window.TG.hoy;
+      aviso("Deuda anotada.");
+      $("d-persona").focus();
+    }
     await cargar();
-    $("d-persona").focus();
   } catch (e) {
     error.textContent = e.message;
     error.hidden = false;

@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS gastos (
     categoria TEXT NOT NULL,
     categoria_auto TEXT NOT NULL,
     creado TEXT NOT NULL,
-    fijo_id INTEGER
+    fijo_id INTEGER,
+    deuda_id INTEGER
 );
 CREATE INDEX IF NOT EXISTS idx_gastos_fecha ON gastos (fecha);
 
@@ -99,6 +100,8 @@ DELETE FROM topes WHERE categoria = 'Otros';
 UPDATE fijos SET categoria = 'Sin clasificar' WHERE categoria = 'Otros';
 ALTER TABLE gastos ADD COLUMN IF NOT EXISTS fijo_id INTEGER;
 CREATE INDEX IF NOT EXISTS idx_gastos_fijo ON gastos (fijo_id);
+ALTER TABLE gastos ADD COLUMN IF NOT EXISTS deuda_id INTEGER;
+CREATE INDEX IF NOT EXISTS idx_gastos_deuda ON gastos (deuda_id);
 """
 
 TABLAS = ("gastos", "ingresos")
@@ -164,22 +167,23 @@ class _ConexionDelPool:
         _obtener_pool().putconn(self._con)
 
 
-# Qué esquema tiene fijado cada conexión del pool ahora mismo (no se le pueden
-# poner atributos propios al objeto de conexión de psycopg2, por eso aparte).
-_esquemas_por_conexion: dict[int, str] = {}
-
-
 def conectar():
+    # Antes había una caché aquí que evitaba repetir "SET search_path" cuando
+    # la conexión prestada por el pool ya apuntaba al esquema correcto, usando
+    # id(con) como clave. Esa caché causó un incidente real: si psycopg2 llega
+    # a reciclar la dirección de memoria de una conexión vieja para una nueva
+    # (algo que puede pasar en CPython), la caché queda "convencida" de que la
+    # conexión nueva ya tiene el search_path correcto sin haberlo puesto nunca
+    # — y las consultas terminan silenciosamente en el esquema equivocado (así
+    # se borraron por completo las tablas de "public" durante una corrida de
+    # tests, que se supone corren aisladas en su propio esquema). Ahora se fija
+    # el search_path SIEMPRE, en cada préstamo: cuesta un viaje de red extra,
+    # pero es la única forma de no confiar en que "ya estaba puesto".
     con = _obtener_pool().getconn()
     con.cursor_factory = RealDictCursor
-    # Si esta conexión ya apunta al esquema correcto (el caso normal, con
-    # mucha diferencia), nos ahorramos dos viajes de red (SET + COMMIT) en
-    # cada préstamo del pool.
-    if _esquemas_por_conexion.get(id(con)) != _esquema:
-        with con.cursor() as cur:
-            cur.execute(f'SET search_path TO "{_esquema}"')
-        con.commit()
-        _esquemas_por_conexion[id(con)] = _esquema
+    with con.cursor() as cur:
+        cur.execute(f'SET search_path TO "{_esquema}"')
+    con.commit()
     return _ConexionDelPool(con)
 
 
@@ -216,16 +220,19 @@ def _fila(r) -> dict:
 
 def _insertar(con, tabla: str, texto: str, concepto: str, monto_centimos: int,
               categoria: str, fecha: str | None, categoria_auto: str | None = None,
-              fijo_id: int | None = None) -> dict:
+              fijo_id: int | None = None, deuda_id: int | None = None) -> dict:
     tabla = _tabla(tabla)
-    campos = "(fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado)"
-    marcas = "(%s, %s, %s, %s, %s, %s, %s)"
+    columnas = ["fecha", "texto", "concepto", "monto_centimos", "categoria", "categoria_auto", "creado"]
     valores = [fecha or hoy(), texto, concepto, monto_centimos, categoria, categoria_auto or categoria,
                tiempo.ahora().isoformat(timespec="microseconds")]
     if fijo_id is not None:
-        campos = "(fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado, fijo_id)"
-        marcas = "(%s, %s, %s, %s, %s, %s, %s, %s)"
+        columnas.append("fijo_id")
         valores.append(fijo_id)
+    if deuda_id is not None:
+        columnas.append("deuda_id")
+        valores.append(deuda_id)
+    campos = "(" + ", ".join(columnas) + ")"
+    marcas = "(" + ", ".join(["%s"] * len(columnas)) + ")"
     with con.cursor() as cur:
         cur.execute(f"INSERT INTO {tabla} {campos} VALUES {marcas} RETURNING *", valores)
         return _fila(cur.fetchone())
@@ -900,11 +907,46 @@ def crear_deuda(persona: str, monto_centimos: int, tipo: str, nota: str = "",
         gasto = None
         if tipo == "me_deben":
             gasto = _insertar(con, "gastos", f"Préstamo a {persona}", f"Préstamo a {persona}",
-                              monto_centimos, "Deudas", fecha)
+                              monto_centimos, "Deudas", fecha, deuda_id=fila["id"])
         con.commit()
         deuda = _deuda(fila)
         deuda["gasto"] = gasto
         return deuda
+
+
+def actualizar_deuda(deuda_id: int, campos: dict) -> dict | None:
+    """No se puede editar una deuda ya pagada. Si tiene un gasto vinculado (préstamo
+    que aún no cobras), sus datos se corrigen junto con la deuda para que no quede
+    desfasado (ver bug de duplicados: borrar y volver a crear dejaba el gasto viejo huérfano)."""
+    permitidos = {"persona", "monto_centimos", "fecha", "nota"}
+    campos = {k: v for k, v in campos.items() if k in permitidos}
+    with closing(conectar()) as con, con.cursor() as cur:
+        cur.execute("SELECT * FROM deudas WHERE id = %s", (deuda_id,))
+        actual = cur.fetchone()
+        if actual is None:
+            return None
+        if actual["pagada_fecha"]:
+            raise ValueError("Esa deuda ya está pagada.")
+        fila = actual
+        if campos:
+            asignaciones = ", ".join(f"{k} = %s" for k in campos)
+            cur.execute(f"UPDATE deudas SET {asignaciones} WHERE id = %s RETURNING *", (*campos.values(), deuda_id))
+            fila = cur.fetchone()
+            if actual["tipo"] == "me_deben" and ({"persona", "monto_centimos", "fecha"} & campos.keys()):
+                asign_gasto, valores_gasto = [], []
+                if "persona" in campos:
+                    asign_gasto += ["texto = %s", "concepto = %s"]
+                    valores_gasto += [f"Préstamo a {campos['persona']}", f"Préstamo a {campos['persona']}"]
+                if "monto_centimos" in campos:
+                    asign_gasto.append("monto_centimos = %s")
+                    valores_gasto.append(campos["monto_centimos"])
+                if "fecha" in campos:
+                    asign_gasto.append("fecha = %s")
+                    valores_gasto.append(campos["fecha"])
+                cur.execute(f"UPDATE gastos SET {', '.join(asign_gasto)} WHERE deuda_id = %s",
+                            (*valores_gasto, deuda_id))
+        con.commit()
+        return _deuda(fila)
 
 
 def listar_deudas(incluir_pagadas: bool = False) -> list[dict]:
@@ -951,6 +993,12 @@ def borrar_deuda(deuda_id: int) -> bool:
         detalle = "Te debía" if fila["tipo"] == "me_deben" else "Le debías"
         if fila["pagada_fecha"]:
             detalle += " · ya estaba pagada"
+            # Ya se cobró: el gasto que anotó el préstamo es historial real, no se borra.
+            cur.execute("UPDATE gastos SET deuda_id = NULL WHERE deuda_id = %s", (deuda_id,))
+        else:
+            # Nunca se cobró: borrar la deuda cancela también el gasto que generó,
+            # para no dejarlo huérfano (antes quedaba duplicado si luego se volvía a anotar).
+            cur.execute("DELETE FROM gastos WHERE deuda_id = %s", (deuda_id,))
         _registrar_borrado(con, "deuda", fila["persona"], detalle, fila["monto_centimos"], fila["fecha"])
         cur.execute("DELETE FROM deudas WHERE id = %s", (deuda_id,))
         borrado = cur.rowcount > 0

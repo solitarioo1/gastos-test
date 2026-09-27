@@ -88,6 +88,10 @@
 
 /* ============ Navegación ============ */
 .navbar-brand.marca { display: flex; align-items: center; justify-content: flex-start; gap: 10px; font-weight: 800; font-size: 1.2rem; letter-spacing: -.01em; }
+/* Tabler pone justify-content:space-between en ".navbar-vertical.navbar-expand-lg
+   .navbar-brand" (más específico que la regla de arriba), así que en escritorio
+   ganaba esa y el logo quedaba pegado a la izquierda con el texto lejos. */
+#menu-lateral .navbar-brand.marca { justify-content: flex-start; }
 .logo { border-radius: 14px; flex: none; }
 
 /* Botón para plegar la barra lateral a solo íconos: flota fijo sobre el borde
@@ -488,6 +492,7 @@ body.menu-movil-abierto .fondo-menu-movil { opacity: 1; visibility: visible; tra
   background: var(--tblr-bg-surface, #fff); color: var(--tblr-body-color); font-weight: 600;
   box-shadow: 0 1px 3px rgba(16, 24, 40, .15);
 }
+.segmentado button:disabled { opacity: .5; cursor: not-allowed; }
 
 .filtros { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
 .campo-buscar { position: relative; flex: 1; min-width: 180px; }

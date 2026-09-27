@@ -590,6 +590,29 @@ def create_app(config: dict | None = None) -> Flask:
         deuda = db.crear_deuda(persona, monto_a_centimos(datos.get("monto")), tipo, nota, fecha)
         return jsonify(deuda), 201
 
+    @app.patch("/api/deudas/<int:deuda_id>")
+    @api
+    def editar_deuda(deuda_id):
+        datos = cuerpo()
+        campos = {}
+        if "persona" in datos:
+            campos["persona"] = texto_valido(datos.get("persona"), "el nombre de la persona", 60)
+        if "monto" in datos:
+            campos["monto_centimos"] = monto_a_centimos(datos.get("monto"))
+        if "fecha" in datos:
+            campos["fecha"] = fecha_valida(datos["fecha"])
+        if "nota" in datos:
+            campos["nota"] = str(datos.get("nota") or "").strip()[:120]
+        if not campos:
+            raise ErrorDatos("No hay nada que cambiar.")
+        try:
+            deuda = db.actualizar_deuda(deuda_id, campos)
+        except ValueError as e:
+            return jsonify(error=str(e)), 409
+        if deuda is None:
+            return jsonify(error="No existe."), 404
+        return jsonify(deuda)
+
     @app.post("/api/deudas/<int:deuda_id>/pagar")
     @api
     def pagar_deuda(deuda_id):

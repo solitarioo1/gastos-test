@@ -42,6 +42,13 @@ class BaseApp(unittest.TestCase):
     def setUp(self):
         db.configurar(self.schema)
         with closing(db.conectar()) as con, con.cursor() as cur:
+            # Verificación real contra el servidor (no basta con confiar en la variable
+            # de Python): un bug de caché por id() de conexión ya hizo una vez que este
+            # TRUNCATE cayera sobre "public" en vez del esquema aislado del test, y
+            # borró datos reales de producción. No debe volver a pasar en silencio.
+            cur.execute("SELECT current_schema()")
+            real = cur.fetchone()["current_schema"]
+            assert real == self.schema, f"search_path apunta a «{real}», no al esquema de test «{self.schema}»"
             cur.execute(
                 "TRUNCATE gastos, ingresos, topes, fijos, deudas, categorias, aprendido, borrados"
                 " RESTART IDENTITY CASCADE"
@@ -650,6 +657,34 @@ class TestDeudas(BaseLogueado):
         d = self.crear().get_json()
         self.assertEqual(self.cli.delete(f"/api/deudas/{d['id']}").status_code, 204)
         self.assertEqual(self.cli.delete(f"/api/deudas/{d['id']}").status_code, 404)
+
+    def test_borrar_deuda_no_pagada_borra_tambien_su_gasto(self):
+        d = self.crear().get_json()
+        self.assertEqual(len(self.cli.get("/api/movimientos").get_json()["items"]), 1)
+        self.cli.delete(f"/api/deudas/{d['id']}")
+        self.assertEqual(self.cli.get("/api/movimientos").get_json()["items"], [])
+
+    def test_borrar_deuda_ya_pagada_no_borra_su_historial(self):
+        d = self.crear().get_json()
+        self.cli.post(f"/api/deudas/{d['id']}/pagar")
+        self.cli.delete(f"/api/deudas/{d['id']}")
+        gastos = self.cli.get("/api/movimientos").get_json()["items"]
+        self.assertEqual([g["concepto"] for g in gastos], ["Préstamo a Juan"])
+
+    def test_editar_actualiza_la_deuda_y_su_gasto_vinculado(self):
+        d = self.crear(fecha="2026-09-04").get_json()
+        r = self.cli.patch(f"/api/deudas/{d['id']}", json={"monto": 70, "fecha": "2026-08-13"})
+        self.assertEqual((r.get_json()["monto_centimos"], r.get_json()["fecha"]), (7000, "2026-08-13"))
+        (g,) = self.cli.get("/api/movimientos?mes=2026-08").get_json()["items"]
+        self.assertEqual((g["concepto"], g["monto_centimos"], g["fecha"]), ("Préstamo a Juan", 7000, "2026-08-13"))
+
+    def test_no_se_puede_editar_una_deuda_ya_pagada(self):
+        d = self.crear().get_json()
+        self.cli.post(f"/api/deudas/{d['id']}/pagar")
+        self.assertEqual(self.cli.patch(f"/api/deudas/{d['id']}", json={"monto": 99}).status_code, 409)
+
+    def test_editar_deuda_inexistente(self):
+        self.assertEqual(self.cli.patch("/api/deudas/9999", json={"monto": 99}).status_code, 404)
 
     def test_validaciones(self):
         for extra in [{"tipo": "otra"}, {"persona": ""}, {"monto": 0}, {"monto": "x"}, {"fecha": "2999-01-01"}]:
