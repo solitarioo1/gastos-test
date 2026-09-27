@@ -268,6 +268,12 @@ function filaFijo(f) {
   });
   interruptor.append(check);
 
+  const editar = crear("button", "btn btn-icon btn-sm btn-ghost-secondary");
+  editar.type = "button";
+  editar.setAttribute("aria-label", `Editar ${f.concepto}`);
+  editar.append(icono("editar", 16));
+  editar.addEventListener("click", () => entrarModoEdicionFijo(f));
+
   const borrar = crear("button", "btn btn-icon btn-sm btn-ghost-danger");
   borrar.type = "button";
   borrar.setAttribute("aria-label", `Borrar ${f.concepto}`);
@@ -293,11 +299,41 @@ function filaFijo(f) {
       aviso(e.message, { error: true });
     }
   });
-  der.append(interruptor, borrar);
+  der.append(interruptor, editar, borrar);
   fila.append(izq, der);
   li.append(fila);
   return li;
 }
+
+let editandoFijoId = null;
+const formFijo = $("form-fijo");
+const botonGuardarFijo = $("fijo-boton-guardar");
+const botonCancelarFijo = $("fijo-cancelar");
+const tituloFormFijo = $("fijo-form-titulo");
+
+function entrarModoEdicionFijo(f) {
+  editandoFijoId = f.id;
+  $("fijo-concepto").value = f.concepto;
+  $("fijo-monto").value = f.monto_centimos / 100;
+  $("fijo-dia").value = f.dia;
+  selFijo.value = f.categoria;
+  tituloFormFijo.textContent = `Editando «${f.concepto}»`;
+  botonGuardarFijo.textContent = "Guardar cambios";
+  botonCancelarFijo.hidden = false;
+  formFijo.closest(".card").scrollIntoView({ behavior: "smooth", block: "start" });
+  $("fijo-concepto").focus();
+}
+
+function salirModoEdicionFijo() {
+  editandoFijoId = null;
+  formFijo.reset();
+  rellenarFijo("Hogar");
+  tituloFormFijo.textContent = "Agregar un gasto fijo";
+  botonGuardarFijo.textContent = "Agregar";
+  botonCancelarFijo.hidden = true;
+}
+
+botonCancelarFijo.addEventListener("click", salirModoEdicionFijo);
 
 async function cargarFijos() {
   const { items: fijos, total_centimos } = await api("/api/fijos");
@@ -308,7 +344,7 @@ async function cargarFijos() {
   $("fijos-total").textContent = soles(total_centimos);
 }
 
-$("form-fijo").addEventListener("submit", async (ev) => {
+formFijo.addEventListener("submit", async (ev) => {
   ev.preventDefault();
   const error = $("fijo-error");
   error.hidden = true;
@@ -324,12 +360,18 @@ $("form-fijo").addEventListener("submit", async (ev) => {
     return;
   }
   try {
-    await api("/api/fijos", { method: "POST", body: cuerpo });
-    ev.target.reset();
-    rellenarFijo("Hogar");
-    aviso("Gasto fijo agregado.");
+    if (editandoFijoId) {
+      await api("/api/fijos/" + editandoFijoId, { method: "PATCH", body: cuerpo });
+      aviso("Gasto fijo actualizado.");
+      salirModoEdicionFijo();
+    } else {
+      await api("/api/fijos", { method: "POST", body: cuerpo });
+      formFijo.reset();
+      rellenarFijo("Hogar");
+      aviso("Gasto fijo agregado.");
+      $("fijo-concepto").focus();
+    }
     await cargarFijos();
-    $("fijo-concepto").focus();
   } catch (e) {
     error.textContent = e.message;
     error.hidden = false;

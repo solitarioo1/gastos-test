@@ -365,13 +365,6 @@ class TestInicio(BaseLogueado):
         self.reg("ayer almuerzo 18")
         self.assertTrue(self.cli.get("/api/inicio").get_json()["sin_registro_hoy"])
 
-    def test_frecuentes(self):
-        for _ in range(3):
-            self.reg("menú 12")
-        self.reg("taxi 8")
-        f = self.cli.get("/api/inicio").get_json()["frecuentes"]
-        self.assertEqual([(x["concepto"], x["monto_centimos"], x["veces"]) for x in f], [("menú", 1200, 3)])
-
     def test_ultimos_mezclan_gastos_e_ingresos(self):
         self.reg("menú 12")
         self.reg("sueldo 500")
@@ -535,15 +528,6 @@ class TestFijos(BaseLogueado):
             self.crear(28, concepto="agua")
             proximos = self.cli.get("/api/inicio").get_json()["proximos_fijos"]
         self.assertEqual([(p["concepto"], p["faltan_dias"]) for p in proximos], [("luz", 2)])
-
-    def test_gasto_fijo_no_cuenta_como_frecuente(self):
-        with congelar(2026, 9, 1):
-            self.crear(2)
-        for dia in (3, 20):
-            with congelar(2026, 9 if dia == 3 else 10, 3 if dia == 3 else 20):
-                self.cli.get("/api/inicio")
-        with congelar(2026, 10, 25):
-            self.assertEqual(self.cli.get("/api/inicio").get_json()["frecuentes"], [])
 
     def test_editar_borrar_y_validar(self):
         fijo = self.crear(15).get_json()

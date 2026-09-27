@@ -376,25 +376,6 @@ def resumen_movimientos(tabla: str, mes: str) -> dict:
     }
 
 
-def frecuentes(limite: int = 6, dias: int = 60) -> list[dict]:
-    desde = (tiempo.hoy() - timedelta(days=dias)).strftime("%Y-%m-%d")
-    with closing(conectar()) as con, con.cursor() as cur:
-        cur.execute(
-            "SELECT MAX(concepto) AS concepto, monto_centimos, MAX(categoria) AS categoria,"
-            " COUNT(*) AS veces, MAX(id) AS ultimo FROM gastos"
-            " WHERE fecha >= %s AND texto NOT LIKE 'Gasto fijo:%%'"
-            " GROUP BY lower(concepto), monto_centimos HAVING COUNT(*) >= 2"
-            " ORDER BY veces DESC, ultimo DESC LIMIT %s",
-            (desde, limite),
-        )
-        filas = cur.fetchall()
-        return [
-            {"concepto": f["concepto"], "monto_centimos": f["monto_centimos"],
-             "categoria": f["categoria"], "veces": f["veces"]}
-            for f in filas
-        ]
-
-
 def todos_los_movimientos() -> list[dict]:
     with closing(conectar()) as con, con.cursor() as cur:
         cur.execute(
@@ -1013,7 +994,6 @@ def inicio() -> dict:
         "hay_topes": bool(topes),
         "sin_clasificar": sin_clasificar(mes),
         "proximos_fijos": proximos_fijos(),
-        "frecuentes": frecuentes(),
         "deudas": resumen_deudas(),
         "ultimos": ultimos_movimientos(),
         "anotados_hoy": anotados_hoy(),

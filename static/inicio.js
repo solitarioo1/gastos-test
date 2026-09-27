@@ -370,34 +370,6 @@ function pintarAlertas(r) {
   }
 }
 
-function pintarFrecuentes(r) {
-  $("bloque-frecuentes").hidden = r.frecuentes.length === 0;
-  const caja = $("frecuentes");
-  caja.replaceChildren();
-  for (const f of r.frecuentes) {
-    const b = crear("button", "chip-frecuente");
-    b.type = "button";
-    b.title = `Lo anotaste ${f.veces} veces`;
-    b.append(crear("span", "", f.concepto), crear("strong", "", soles(f.monto_centimos)));
-    b.addEventListener("click", async () => {
-      b.disabled = true;
-      try {
-        const g = await api("/api/gastos", {
-          method: "POST",
-          body: { concepto: f.concepto, monto: f.monto_centimos / 100, categoria: f.categoria },
-        });
-        mostrarGuardado([{ tipo: "gasto", ...g }]);
-        await cargar();
-      } catch (e) {
-        mostrarError(e.message);
-      } finally {
-        b.disabled = false;
-      }
-    });
-    caja.append(b);
-  }
-}
-
 function pintarFijos(r) {
   $("bloque-fijos").hidden = r.proximos_fijos.length === 0;
   const lista = $("proximos-fijos");
@@ -466,28 +438,13 @@ function pintarAnotados(r) {
   }
 }
 
-// "Repetir con un toque" y "Se vienen estos pagos" comparten fila a media
-// pantalla cada uno; si solo uno de los dos tiene datos, que ocupe todo el
-// ancho en vez de dejar la mitad de la fila vacía.
-function ajustarAnchoBloques() {
-  const frecuentes = $("bloque-frecuentes");
-  const fijos = $("bloque-fijos");
-  const ambos = !frecuentes.hidden && !fijos.hidden;
-  for (const el of [frecuentes, fijos]) {
-    el.classList.toggle("col-lg-6", ambos);
-    el.classList.toggle("col-12", !ambos);
-  }
-}
-
 async function cargar() {
   const r = await api("/api/inicio");
   pintarSinClasificar(r);
   pintarDisponible(r);
   pintarHoy(r);
   pintarAlertas(r);
-  pintarFrecuentes(r);
   pintarFijos(r);
-  ajustarAnchoBloques();
   pintarAnotados(r);
 }
 

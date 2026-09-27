@@ -438,12 +438,6 @@ body.menu-movil-abierto .fondo-menu-movil { opacity: 1; visibility: visible; tra
   display: inline-block; padding: 4px 12px; border-radius: 999px; font-size: 14px; text-decoration: none;
   background: rgba(var(--azul-rgb), .1); color: var(--azul); font-weight: 600;
 }
-.chip-frecuente {
-  display: inline-flex; gap: 8px; align-items: baseline; padding: 8px 14px; border-radius: 999px;
-  border: 1px solid var(--tblr-border-color); background: var(--tblr-bg-surface, #fff); color: inherit; cursor: pointer;
-}
-.chip-frecuente:hover:not(:disabled) { border-color: var(--tblr-primary); }
-.chip-frecuente strong { font-variant-numeric: tabular-nums; }
 
 .estado {
   display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: 999px;

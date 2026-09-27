@@ -21,7 +21,10 @@
 
   <section id="panel-fijos" aria-labelledby="tab-fijos" hidden>
     <div class="card mb-3">
-      <div class="card-header"><h3 class="card-title">Agregar un gasto fijo</h3></div>
+      <div class="card-header d-flex align-items-center justify-content-between gap-2">
+        <h3 class="card-title mb-0" id="fijo-form-titulo">Agregar un gasto fijo</h3>
+        <button type="button" class="btn btn-sm" id="fijo-cancelar" hidden>Cancelar</button>
+      </div>
       <div class="card-body">
         <form id="form-fijo" class="row g-2 align-items-end" novalidate>
           <div class="col-12 col-md-4">
@@ -41,7 +44,7 @@
             <select id="fijo-categoria" class="form-select"></select>
           </div>
           <div class="col-4 col-md-2">
-            <button type="submit" class="btn btn-primary w-100">Agregar</button>
+            <button type="submit" class="btn btn-primary w-100" id="fijo-boton-guardar">Agregar</button>
           </div>
         </form>
         <div id="fijo-error" class="text-danger mt-2" role="alert" hidden></div>
