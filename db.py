@@ -1,4 +1,5 @@
 import calendar
+import os
 import re
 import sqlite3
 from contextlib import closing
@@ -106,6 +107,9 @@ def hoy() -> str:
 
 
 def conectar(ruta: str) -> sqlite3.Connection:
+    directorio = os.path.dirname(ruta)
+    if directorio:
+        os.makedirs(directorio, exist_ok=True)
     con = sqlite3.connect(ruta)
     con.row_factory = sqlite3.Row
     return con
