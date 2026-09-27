@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "_iconos.html" import icono %}
+{% block titulo %}Planificación · {{ app_nombre }}{% endblock %}
+{% block titulo_pagina %}Planificación{% endblock %}
+{% block contenido %}
+<div id="planificacion" data-mes-actual="{{ mes_actual }}">
+  <div class="segmentado mb-3" role="tablist" aria-label="Planificación">
+    <button type="button" role="tab" id="tab-topes" data-panel="topes" aria-selected="true">Topes</button>
+    <button type="button" role="tab" id="tab-fijos" data-panel="fijos" aria-selected="false">Gastos fijos</button>
+    <button type="button" role="tab" id="tab-categorias" data-panel="categorias" aria-selected="false">Categorías</button>
+  </div>
+
+  <section id="panel-topes" aria-labelledby="tab-topes">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Cuánto quieres gastar como máximo cada mes</h3></div>
+      <div class="card-body">
+        <p class="text-secondary">Pon un tope en las categorías donde más se te va la plata. En Inicio te avisamos cuando llegues al 80 %.</p>
+        <ul id="lista-topes" class="lista-plana"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-fijos" aria-labelledby="tab-fijos" hidden>
+    <div class="card mb-3">
+      <div class="card-header"><h3 class="card-title">Agregar un gasto fijo</h3></div>
+      <div class="card-body">
+        <p class="text-secondary">Alquiler, luz, celular, pensión… Se anotan solos el día que dices, cada mes, para que no se te olvide ninguno.</p>
+        <form id="form-fijo" class="row g-2 align-items-end" novalidate>
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="fijo-concepto">Concepto</label>
+            <input id="fijo-concepto" class="form-control" maxlength="100" placeholder="Alquiler" autocomplete="off" required>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label" for="fijo-monto">Monto (S/)</label>
+            <input id="fijo-monto" class="form-control" type="number" step="0.01" min="0.01" inputmode="decimal" required>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label" for="fijo-dia">Día del mes</label>
+            <input id="fijo-dia" class="form-control" type="number" min="1" max="31" inputmode="numeric" placeholder="5" required>
+          </div>
+          <div class="col-8 col-md-2">
+            <label class="form-label" for="fijo-categoria">Categoría</label>
+            <select id="fijo-categoria" class="form-select"></select>
+          </div>
+          <div class="col-4 col-md-2">
+            <button type="submit" class="btn btn-primary w-100">Agregar</button>
+          </div>
+        </form>
+        <div id="fijo-error" class="text-danger mt-2" role="alert" hidden></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Tus gastos fijos</h3></div>
+      <ul class="list-group list-group-flush" id="lista-fijos"></ul>
+      <div class="estado-vacio" id="fijos-vacio" hidden>
+        <div class="estado-vacio-icono">{{ icono('planificacion', 28) }}</div>
+        <strong>Aún no tienes gastos fijos</strong>
+        <span class="text-secondary">Agrega el primero arriba.</span>
+      </div>
+    </div>
+  </section>
+
+  <section id="panel-categorias" aria-labelledby="tab-categorias" hidden>
+    <div class="card mb-3">
+      <div class="card-body d-flex flex-wrap gap-3 align-items-center justify-content-between">
+        <p class="text-secondary mb-0" style="max-width: 560px">Aquí ves todas las categorías. Las de fábrica ya vienen listas; crea las tuyas (fútbol, negocio, iglesia…) y úsalas al anotar. Si una no existe, la app te pregunta y la aprende.</p>
+        <button type="button" class="btn btn-primary" id="nueva-categoria">{{ icono('mas', 18) }}<span>Nueva categoría</span></button>
+      </div>
+    </div>
+    <div class="row row-cards">
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Categorías de gastos</h3></div>
+          <ul class="list-group list-group-flush" id="cats-gasto"></ul>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Categorías de ingresos</h3></div>
+          <ul class="list-group list-group-flush" id="cats-ingreso"></ul>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='planificacion.js') }}"></script>
+{% endblock %}

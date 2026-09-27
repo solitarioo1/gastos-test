@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_iconos.html" import icono %}
+{% block titulo %}Historial de borrados · {{ app_nombre }}{% endblock %}
+{% block titulo_pagina %}Historial de borrados{% endblock %}
+{% block contenido %}
+<div class="angosto">
+  <p class="text-secondary">Todo lo que se ha borrado en la app: gastos, ingresos, deudas, gastos fijos y categorías. Solo para consultar qué pasó; no se puede recuperar nada desde aquí. Si acabas de borrar algo, usa el botón «Deshacer» que aparece al momento.</p>
+  <div class="card">
+    <div id="lista" class="lista-mov"></div>
+    <div id="vacio" class="estado-vacio" hidden>
+      <div class="estado-vacio-icono">{{ icono('historial', 28) }}</div>
+      <strong>Todavía no se ha borrado nada</strong>
+      <span class="text-secondary">Cuando borres un gasto, un ingreso, una deuda o algo más, va a quedar anotado aquí.</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='historial.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,13 @@
+# Reglas de IA de vscode (no se comparten)
+.github/instructions/codacy.instructions.md
+
+# Datos y entorno local
+gastos.db
+*.db
+.env
+__pycache__/
+*.pyc
+.venv/
+
+# Notas de negocio (privado, no sube a GitHub)
+plan.md

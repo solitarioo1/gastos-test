@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% from "_iconos.html" import icono %}
+{% block titulo %}Resumen · {{ app_nombre }}{% endblock %}
+{% block titulo_pagina %}Resumen{% endblock %}
+{% block acciones %}
+<div class="d-flex gap-2 align-items-center">
+  <div class="btn-group" role="group" aria-label="Cambiar de mes">
+    <button type="button" id="mes-anterior" class="btn btn-icon" aria-label="Mes anterior">{{ icono('izquierda', 18) }}</button>
+    <span id="mes-etiqueta" class="btn pe-none" aria-live="polite">&nbsp;</span>
+    <button type="button" id="mes-siguiente" class="btn btn-icon" aria-label="Mes siguiente">{{ icono('derecha', 18) }}</button>
+  </div>
+  <button type="button" id="actualizar" class="btn btn-icon" aria-label="Actualizar" title="Actualizar">{{ icono('actualizar', 18) }}</button>
+</div>
+{% endblock %}
+{% block contenido %}
+<div id="resumen" data-mes-actual="{{ mes_actual }}" class="row row-cards">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-body">
+        <div class="text-secondary" id="hero-etiqueta">Gastado en el mes</div>
+        <div class="hero" id="total">S/ 0.00</div>
+        <div class="text-secondary" id="comparacion"></div>
+        <div class="text-secondary small" id="detalle"></div>
+        <div class="linea-balance" id="balance" hidden>
+          <div><span class="text-secondary">Ingresos</span> <strong id="bal-ingresos">S/ 0.00</strong></div>
+          <div><span class="text-secondary" id="bal-etiqueta">Te sobran</span> <strong id="bal-monto">S/ 0.00</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title">Gasto por día</h3></div>
+      <div class="card-body">
+        <div id="grafico" class="grafico"></div>
+        <p id="grafico-vacio" class="text-secondary mb-0" hidden>No hay gastos en este mes.</p>
+        <div class="row row-cols-2 row-cols-md-4 g-3 mt-2" id="estadisticas">
+          <div class="col"><div class="text-secondary small">Días transcurridos</div><div class="cifra" id="est-dias">0</div></div>
+          <div class="col"><div class="text-secondary small">Días con gasto</div><div class="cifra" id="est-con-gasto">0</div></div>
+          <div class="col"><div class="text-secondary small">Promedio diario</div><div class="cifra" id="est-promedio">S/ 0.00</div></div>
+          <div class="col"><div class="text-secondary small">Día de mayor gasto</div><div class="cifra" id="est-mayor">—</div><div class="text-secondary small" id="est-mayor-monto"></div></div>
+        </div>
+        <details class="mt-3" id="vista-tabla">
+          <summary class="text-secondary">Ver como tabla</summary>
+          <table class="table table-sm mt-2">
+            <thead><tr><th>Día</th><th class="text-end">Gasto</th></tr></thead>
+            <tbody id="tabla-dias"></tbody>
+          </table>
+        </details>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title">Por categoría</h3></div>
+      <div class="card-body">
+        <p id="destacada" class="fw-bold" hidden></p>
+        <ul id="barras" class="lista-plana"></ul>
+        <p id="vacio" class="text-secondary mb-0" hidden>No hay gastos en este mes.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12" id="bloque-ultimos" hidden>
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">Últimos movimientos</h3>
+        <div class="card-actions"><a href="{{ url_for('movimientos') }}">Ver todos los movimientos</a></div>
+      </div>
+      <ul id="ultimos" class="list-group list-group-flush"></ul>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='resumen.js') }}"></script>
+{% endblock %}

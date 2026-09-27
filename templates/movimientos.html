@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% from "_iconos.html" import icono %}
+{% block titulo %}Movimientos · {{ app_nombre }}{% endblock %}
+{% block titulo_pagina %}Movimientos{% endblock %}
+{% block acciones %}
+<div class="d-flex gap-2">
+  <a class="btn btn-icon" href="{{ url_for('exportar') }}" download aria-label="Exportar a Excel" title="Exportar a Excel">{{ icono('exportar', 18) }}</a>
+  <button type="button" class="btn btn-primary" id="agregar">{{ icono('mas', 18) }}<span>Agregar</span></button>
+</div>
+{% endblock %}
+{% block contenido %}
+<div id="movimientos" data-mes-actual="{{ mes_actual }}" data-hoy="{{ hoy }}">
+  <div class="segmentado mb-3" role="tablist" aria-label="Tipo de movimiento">
+    <button type="button" role="tab" id="tab-gastos" data-tipo="gastos" aria-selected="true">Gastos</button>
+    <button type="button" role="tab" id="tab-ingresos" data-tipo="ingresos" aria-selected="false">Ingresos</button>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-5">
+          <div class="text-secondary" id="res-etiqueta">Gastado en el mes</div>
+          <div class="cifra-grande" id="res-total">S/ 0.00</div>
+          <div class="text-secondary small" id="res-comparacion"></div>
+        </div>
+        <div class="col-6 col-md-3">
+          <div class="text-secondary">Movimientos</div>
+          <div class="cifra-mediana" id="res-n">0</div>
+        </div>
+        <div class="col-6 col-md-4">
+          <div class="text-secondary" id="res-mayor-etiqueta">Mayor gasto</div>
+          <div class="cifra-mediana" id="res-mayor">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="filtros mb-3">
+    <div class="btn-group" role="group" aria-label="Cambiar de mes">
+      <button type="button" id="mes-anterior" class="btn btn-icon" aria-label="Mes anterior">{{ icono('izquierda', 18) }}</button>
+      <span id="mes-etiqueta" class="btn pe-none" aria-live="polite">&nbsp;</span>
+      <button type="button" id="mes-siguiente" class="btn btn-icon" aria-label="Mes siguiente">{{ icono('derecha', 18) }}</button>
+    </div>
+    <div class="campo-buscar">
+      {{ icono('buscar', 18) }}
+      <label for="buscar" class="visually-hidden">Buscar</label>
+      <input id="buscar" type="search" class="form-control" placeholder="Buscar por concepto…" maxlength="60" autocomplete="off">
+    </div>
+    <div>
+      <label for="filtro-categoria" class="visually-hidden">Categoría</label>
+      <select id="filtro-categoria" class="form-select"><option value="">Todas las categorías</option></select>
+    </div>
+  </div>
+
+  <div class="card" id="tarjeta-lista">
+    <div id="lista" class="lista-mov"></div>
+    <div id="vacio" class="estado-vacio" hidden>
+      <div class="estado-vacio-icono">{{ icono('movimientos', 28) }}</div>
+      <strong id="vacio-titulo">No hay gastos en este mes</strong>
+      <span class="text-secondary" id="vacio-detalle">Cuando anotes uno en Inicio, aparecerá aquí.</span>
+    </div>
+  </div>
+</div>
+
+<dialog id="dialogo" class="dialogo" aria-labelledby="dialogo-titulo">
+  <form id="form-mov" novalidate>
+    <div class="dialogo-cabecera">
+      <h3 id="dialogo-titulo">Agregar gasto</h3>
+      <button type="button" class="btn btn-icon btn-ghost-secondary" id="f-cerrar" aria-label="Cerrar">{{ icono('cerrar', 18) }}</button>
+    </div>
+    <div class="dialogo-cuerpo">
+      <div class="mb-3">
+        <label class="form-label" for="f-concepto">Concepto</label>
+        <input id="f-concepto" class="form-control" maxlength="100" autocomplete="off" required>
+      </div>
+      <div class="row g-2 mb-3">
+        <div class="col-6">
+          <label class="form-label" for="f-monto">Monto (S/)</label>
+          <input id="f-monto" class="form-control" type="number" step="0.01" min="0.01" inputmode="decimal" required>
+        </div>
+        <div class="col-6">
+          <label class="form-label" for="f-fecha">Fecha</label>
+          <input id="f-fecha" class="form-control" type="date" max="{{ hoy }}" required>
+        </div>
+      </div>
+      <div class="mb-1">
+        <label class="form-label" for="f-categoria">Categoría</label>
+        <select id="f-categoria" class="form-select"></select>
+        <div class="form-hint mt-1">Si la dejas en «Sin clasificar», intento adivinarla. Si la eliges tú, la recuerdo para la próxima vez.</div>
+      </div>
+      <div id="f-error" class="text-danger mt-2" role="alert" hidden></div>
+    </div>
+    <div class="dialogo-pie">
+      <button type="button" class="btn btn-outline-danger me-auto" id="f-borrar" hidden>Borrar</button>
+      <button type="button" class="btn" id="f-cancelar">Cancelar</button>
+      <button type="submit" class="btn btn-primary">Guardar</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='movimientos.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% from "_iconos.html" import icono %}
+{% block titulo %}Registros · {{ app_nombre }}{% endblock %}
+{% block titulo_pagina %}Registros{% endblock %}
+{% block contenido %}
+<div class="row row-cards" id="inicio">
+  <div class="col-12">
+    <div class="card tarjeta-registro">
+      <div class="card-body">
+        <form id="form-pasos" autocomplete="off" novalidate>
+          <h3 class="registro-titulo">Anotar un gasto</h3>
+
+          <div class="paso">
+            <label class="paso-titulo" for="monto"><span class="paso-num">1</span>¿Cuánto?</label>
+            <div class="monto-caja">
+              <span aria-hidden="true">S/</span>
+              <input id="monto" type="number" step="0.01" min="0.01" inputmode="decimal" placeholder="0.00" enterkeyhint="done" aria-label="Monto en soles">
+            </div>
+          </div>
+
+          <div class="paso">
+            <span class="paso-titulo" id="etq-fecha"><span class="paso-num">2</span>¿Cuándo?</span>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <div class="segmentado segmentado-chico" role="radiogroup" aria-labelledby="etq-fecha" id="fecha-opciones">
+                <button type="button" role="radio" data-dia="0" aria-checked="true">Hoy</button>
+                <button type="button" role="radio" data-dia="1" aria-checked="false">Ayer</button>
+                <button type="button" role="radio" data-dia="otro" aria-checked="false">Otro día</button>
+              </div>
+              <label for="fecha-otra" class="visually-hidden">Fecha</label>
+              <input id="fecha-otra" type="date" class="form-control fecha-otra" max="{{ hoy }}" hidden>
+            </div>
+            <div class="nota-fecha" id="nota-fecha" hidden>
+              <span>Se anotará con fecha <strong id="nota-fecha-texto"></strong>.</span>
+              <button type="button" class="enlace-boton" id="volver-hoy">Volver a hoy</button>
+            </div>
+          </div>
+
+          <div class="paso">
+            <span class="paso-titulo" id="etq-categoria"><span class="paso-num">3</span>¿En qué?</span>
+            <div class="cat-chips" id="cat-chips" role="radiogroup" aria-labelledby="etq-categoria"></div>
+          </div>
+
+          <div class="paso paso-opcional" id="detalle-caja" hidden>
+            <label for="detalle" class="paso-titulo-suave">Detalle <span class="text-secondary">(opcional)</span></label>
+            <input id="detalle" class="form-control" maxlength="100" placeholder="Ej.: almuerzo con Juan" autocomplete="off">
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg w-100 mt-1">{{ icono('check', 22) }}<span>Guardar</span></button>
+
+          <div class="registro-enlaces">
+            <button type="button" class="enlace-suave" id="abrir-detalle">Agregar un detalle</button>
+          </div>
+        </form>
+
+        <div id="mensaje" class="mensaje" role="status" aria-live="polite"></div>
+        <div id="clasificar" class="clasificar-lista"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Lo anotado hoy</h3>
+        <div class="card-actions"><a href="{{ url_for('movimientos') }}">Ver todos</a></div>
+      </div>
+      <ul class="list-group list-group-flush" id="anotados"></ul>
+      <div class="card-body text-secondary" id="anotados-vacio" hidden>Hoy aún no anotaste nada.</div>
+    </div>
+  </div>
+
+  <div class="col-12" id="bloque-sinclasificar" hidden>
+    <div class="banner-clasificar" role="note">
+      {{ icono('alerta', 22) }}
+      <div class="banner-texto">
+        <strong id="sc-titulo"></strong>
+        <div class="small" id="sc-detalle"></div>
+      </div>
+      <a class="btn btn-sm btn-primary" id="sc-enlace" href="{{ url_for('movimientos') }}">Clasificar</a>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card tarjeta-hero h-100">
+      <div class="card-body">
+        <div class="hero-etiqueta" id="disp-etiqueta">Te quedan este mes</div>
+        <div class="hero" id="disp-monto">S/ 0.00</div>
+        <div class="hero-linea" id="disp-detalle"></div>
+        <div class="medidor-hero" id="disp-barra-caja" hidden>
+          <div class="relleno" id="disp-barra" role="progressbar" aria-label="Parte de tus ingresos ya gastada" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+        <div class="hero-pie">
+          <div><span>Ingresos</span><strong id="disp-ingresos">S/ 0.00</strong></div>
+          <div><span>Gastos</span><strong id="disp-gastos">S/ 0.00</strong></div>
+          <a href="{{ url_for('movimientos') }}?tipo=ingresos&amp;agregar=1" class="enlace-hero">{{ icono('mas', 16) }}Anotar ingreso</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="text-secondary">Gastado hoy</div>
+        <div class="cifra-grande" id="hoy-monto">S/ 0.00</div>
+        <div class="text-secondary" id="hoy-detalle"></div>
+        <div class="recordatorio" id="recordatorio" hidden>
+          {{ icono('campana', 20) }}
+          <div>
+            <strong>Hoy aún no anotaste nada.</strong>
+            <div class="small">Si gastaste algo, anótalo arriba. Se hace en 5 segundos.</div>
+          </div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 mt-3" id="resumen-deudas"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12" id="bloque-alertas" hidden>
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Ojo con estos topes</h3>
+        <div class="card-actions"><a href="{{ url_for('planificacion') }}">Cambiar topes</a></div>
+      </div>
+      <ul class="list-group list-group-flush" id="alertas"></ul>
+    </div>
+  </div>
+
+  <div class="col-lg-6" id="bloque-frecuentes" hidden>
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title">Repetir con un toque</h3></div>
+      <div class="card-body">
+        <p class="text-secondary small mb-2">Tus gastos de siempre. Toca uno y se anota hoy.</p>
+        <div class="d-flex flex-wrap gap-2" id="frecuentes"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6" id="bloque-fijos" hidden>
+    <div class="card h-100">
+      <div class="card-header"><h3 class="card-title">Se vienen estos pagos</h3>
+        <div class="card-actions"><a href="{{ url_for('planificacion') }}#fijos">Ver gastos fijos</a></div>
+      </div>
+      <ul class="list-group list-group-flush" id="proximos-fijos"></ul>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg-mas" class="dialogo hoja" aria-labelledby="dlg-mas-titulo">
+  <div class="dialogo-cabecera">
+    <h3 id="dlg-mas-titulo">Todas las categorías</h3>
+    <button type="button" class="btn btn-icon btn-ghost-secondary" id="dlg-mas-cerrar" aria-label="Cerrar">{{ icono('cerrar', 18) }}</button>
+  </div>
+  <div class="dialogo-cuerpo">
+    <div class="cat-chips" id="cat-todas"></div>
+  </div>
+</dialog>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='inicio.js') }}"></script>
+{% endblock %}
