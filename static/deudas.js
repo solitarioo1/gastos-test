@@ -8,10 +8,6 @@ function elegirTipo(tipo) {
   tipoNuevo = tipo;
   document.querySelectorAll("#form-deuda [role=radio]").forEach((b) => b.setAttribute("aria-checked", b.dataset.tipo === tipo ? "true" : "false"));
   $("d-persona").placeholder = tipo === "me_deben" ? "Juan" : "Bodega de la esquina";
-  $("d-ayuda").textContent =
-    tipo === "me_deben"
-      ? "Si prestas dinero, se anota también como un gasto en “Deudas”. Cuando te lo devuelvan, entra como ingreso."
-      : "Lo que debes no toca tus gastos hasta que lo pagues. Ahí se anota como gasto en “Deudas”.";
 }
 document.querySelectorAll("#form-deuda [role=radio]").forEach((b) => b.addEventListener("click", () => elegirTipo(b.dataset.tipo)));
 

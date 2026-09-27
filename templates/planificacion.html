@@ -14,7 +14,6 @@
     <div class="card">
       <div class="card-header"><h3 class="card-title">Cuánto quieres gastar como máximo cada mes</h3></div>
       <div class="card-body">
-        <p class="text-secondary">Pon un tope en las categorías donde más se te va la plata. En Inicio te avisamos cuando llegues al 80 %.</p>
         <ul id="lista-topes" class="lista-plana"></ul>
       </div>
     </div>
@@ -24,7 +23,6 @@
     <div class="card mb-3">
       <div class="card-header"><h3 class="card-title">Agregar un gasto fijo</h3></div>
       <div class="card-body">
-        <p class="text-secondary">Alquiler, luz, celular, pensión… Se anotan solos el día que dices, cada mes, para que no se te olvide ninguno.</p>
         <form id="form-fijo" class="row g-2 align-items-end" novalidate>
           <div class="col-12 col-md-4">
             <label class="form-label" for="fijo-concepto">Concepto</label>
@@ -69,8 +67,7 @@
 
   <section id="panel-categorias" aria-labelledby="tab-categorias" hidden>
     <div class="card mb-3">
-      <div class="card-body d-flex flex-wrap gap-3 align-items-center justify-content-between">
-        <p class="text-secondary mb-0" style="max-width: 560px">Aquí ves todas las categorías. Las de fábrica ya vienen listas; crea las tuyas (fútbol, negocio, iglesia…) y úsalas al anotar. Si una no existe, la app te pregunta y la aprende.</p>
+      <div class="card-body d-flex flex-wrap gap-3 align-items-center">
         <button type="button" class="btn btn-primary" id="nueva-categoria">{{ icono('mas', 18) }}<span>Nueva categoría</span></button>
       </div>
     </div>
