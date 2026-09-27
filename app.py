@@ -87,7 +87,7 @@ def create_app(config: dict | None = None) -> Flask:
     dev = os.environ.get("PLATA_DEV") == "1"
 
     app.config.update(
-        DB_PATH=os.environ.get("PLATA_DB", "gastos.db"),
+        PG_SCHEMA=os.environ.get("PG_SCHEMA", "public"),
         SECRET_KEY=os.environ.get("PLATA_SECRET", "dev-secret" if dev else ""),
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
@@ -104,7 +104,12 @@ def create_app(config: dict | None = None) -> Flask:
             "Falta PLATA_SECRET. Para probar en local usa PLATA_DEV=1."
         )
 
-    db.iniciar(app.config["DB_PATH"])
+    db.configurar(app.config["PG_SCHEMA"])
+    if not app.config.get("TESTING"):
+        # En pruebas, la clase de test crea el esquema una sola vez (setUpClass)
+        # y lo vacía entre tests; repetir esto en cada create_app() sería mucho
+        # más lento contra el Postgres real sin aportar nada.
+        db.iniciar()
 
     def sincronizar_admin():
         """Vuelve a leer PLATA_ADMIN_USER/PASSWORD del .env (por si cambiaron) y los
@@ -121,9 +126,6 @@ def create_app(config: dict | None = None) -> Flask:
                 print(f"Aviso: no se pudo crear/actualizar el usuario admin desde .env: {e}")
 
     sincronizar_admin()
-
-    def ruta_db() -> str:
-        return app.config["DB_PATH"]
 
     def requiere_login(vista):
         @wraps(vista)
@@ -153,21 +155,40 @@ def create_app(config: dict | None = None) -> Flask:
         return datos if isinstance(datos, dict) else {}
 
     def cats(tipo: str) -> list[str]:
-        return db.categorias(ruta_db(), tipo)
+        return db.categorias(tipo)
 
     def aprendida(tipo: str, tokens: list[str]):
-        return db.categoria_aprendida(ruta_db(), tipo, tokens)
+        return db.categoria_aprendida(tipo, tokens)
+
+    def estatico(filename: str) -> str:
+        """url_for('static', ...) con un ?v= según la fecha de modificación del
+        archivo: permite cachear fuerte en el navegador sin servir versiones
+        viejas cuando el archivo cambia (clave para que la navegación entre
+        páginas no vuelva a descargar todo el CSS/JS cada vez)."""
+        ruta = os.path.join(app.static_folder, filename)
+        try:
+            v = int(os.path.getmtime(ruta))
+        except OSError:
+            v = 0
+        return url_for("static", filename=filename, v=v)
 
     @app.context_processor
     def globales():
-        return {"app_nombre": APP_NOMBRE, "categorias": cats("gasto"), "categorias_ingreso": cats("ingreso")}
+        return {
+            "app_nombre": APP_NOMBRE,
+            "categorias": cats("gasto"),
+            "categorias_ingreso": cats("ingreso"),
+            "estatico": estatico,
+        }
 
     @app.after_request
     def cabeceras(resp):
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["X-Frame-Options"] = "DENY"
         resp.headers["Referrer-Policy"] = "same-origin"
-        if request.path.startswith("/api/") or request.path == "/login" or request.path.startswith("/static/"):
+        if request.path.startswith("/static/"):
+            resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+        elif request.path.startswith("/api/") or request.path == "/login":
             resp.headers["Cache-Control"] = "no-store"
         return resp
 
@@ -220,8 +241,8 @@ def create_app(config: dict | None = None) -> Flask:
             extra = {}
             if clave == "inicio":
                 extra["mas_usadas"] = {
-                    "gasto": db.categorias_mas_usadas(ruta_db(), "gasto"),
-                    "ingreso": db.categorias_mas_usadas(ruta_db(), "ingreso"),
+                    "gasto": db.categorias_mas_usadas("gasto"),
+                    "ingreso": db.categorias_mas_usadas("ingreso"),
                 }
             return render_template(f"{nombre}.html", pagina=clave, mes_actual=db.hoy()[:7], hoy=db.hoy(), **extra)
 
@@ -238,7 +259,7 @@ def create_app(config: dict | None = None) -> Flask:
         salida.write("﻿")  # BOM para que Excel lea bien las tildes
         escritor = csv.writer(salida)
         escritor.writerow(["tipo", "fecha", "concepto", "categoria", "monto_soles", "texto_original"])
-        for m in db.todos_los_movimientos(ruta_db()):
+        for m in db.todos_los_movimientos():
             escritor.writerow([
                 m["tipo"], m["fecha"], csv_seguro(m["concepto"]), m["categoria"],
                 f"{m['monto_centimos'] / 100:.2f}", csv_seguro(m["texto"]),
@@ -303,12 +324,12 @@ def create_app(config: dict | None = None) -> Flask:
                 categoria, dudosa = m.categoria, m.dudosa
                 if elegida and elegida != SIN_CLASIFICAR and elegida in cats(m.tipo):
                     categoria, dudosa = elegida, False
-                    db.aprender(ruta_db(), m.tipo, tokens_significativos(m.concepto), categoria)
-                fila = db.insertar(ruta_db(), tabla, texto, m.concepto, m.monto_centimos, categoria, fecha,
+                    db.aprender(m.tipo, tokens_significativos(m.concepto), categoria)
+                fila = db.insertar(tabla, texto, m.concepto, m.monto_centimos, categoria, fecha,
                                    categoria_auto=m.categoria)
                 creados.append(resumen_creado(m.tipo, fila, categoria_dudosa=dudosa))
             else:
-                deuda = db.crear_deuda(ruta_db(), m.persona, m.monto_centimos, m.tipo, fecha=fecha)
+                deuda = db.crear_deuda(m.persona, m.monto_centimos, m.tipo, fecha=fecha)
                 gasto = deuda.pop("gasto")
                 creados.append(resumen_creado(m.tipo, deuda, concepto=m.concepto, categoria="Deudas"))
                 if gasto:
@@ -341,8 +362,8 @@ def create_app(config: dict | None = None) -> Flask:
                 categoria = sugerida
             else:
                 categoria = elegida
-                db.aprender(ruta_db(), tipo, tokens_significativos(campos["concepto"]), categoria)
-            fila = db.insertar(ruta_db(), tabla, campos["concepto"], campos["concepto"],
+                db.aprender(tipo, tokens_significativos(campos["concepto"]), categoria)
+            fila = db.insertar(tabla, campos["concepto"], campos["concepto"],
                                campos["monto_centimos"], categoria, campos.get("fecha"), categoria_auto=sugerida)
             return jsonify(fila), 201
 
@@ -351,24 +372,24 @@ def create_app(config: dict | None = None) -> Flask:
             campos = leer_campos(cuerpo(), exigir=False)
             if not campos:
                 raise ErrorDatos("No hay nada que cambiar.")
-            previo = db.obtener(ruta_db(), tabla, mov_id)
-            fila = db.actualizar(ruta_db(), tabla, mov_id, campos)
+            previo = db.obtener(tabla, mov_id)
+            fila = db.actualizar(tabla, mov_id, campos)
             if fila is None:
                 return jsonify(error="No existe."), 404
             if previo and campos.get("categoria") and campos["categoria"] != previo["categoria"]:
                 # el usuario corrigió la categoría: la app lo recuerda para la próxima vez
-                db.aprender(ruta_db(), tipo, tokens_significativos(fila["concepto"]), campos["categoria"])
+                db.aprender(tipo, tokens_significativos(fila["concepto"]), campos["categoria"])
             return jsonify(fila)
 
         @api
         def borrar(mov_id):
-            if not db.borrar(ruta_db(), tabla, mov_id):
+            if not db.borrar(tabla, mov_id):
                 return jsonify(error="No existe."), 404
             return "", 204
 
         @api
         def recientes():
-            return jsonify(db.recientes(ruta_db(), 30, tabla))
+            return jsonify(db.recientes(30, tabla))
 
         base = f"/api/{tabla}"
         app.add_url_rule(base, f"crear_{tabla}", crear, methods=["POST"])
@@ -390,10 +411,10 @@ def create_app(config: dict | None = None) -> Flask:
         categoria = request.args.get("categoria") or None
         if categoria and categoria not in cats("gasto" if tipo == "gastos" else "ingreso"):
             raise ErrorDatos("Categoría no válida.")
-        db.generar_fijos(ruta_db())
+        db.generar_fijos()
         return jsonify(
-            items=db.listar(ruta_db(), tipo, mes=mes, q=q or None, categoria=categoria),
-            resumen=db.resumen_movimientos(ruta_db(), tipo, mes),
+            items=db.listar(tipo, mes=mes, q=q or None, categoria=categoria),
+            resumen=db.resumen_movimientos(tipo, mes),
         )
 
     # ---------- API: resumen e inicio ----------
@@ -402,13 +423,13 @@ def create_app(config: dict | None = None) -> Flask:
     @api
     def api_resumen():
         mes = mes_valido(request.args.get("mes"))
-        db.generar_fijos(ruta_db())
-        return jsonify(db.resumen_mes(ruta_db(), mes))
+        db.generar_fijos()
+        return jsonify(db.resumen_mes(mes))
 
     @app.get("/api/inicio")
     @api
     def api_inicio():
-        return jsonify(db.inicio(ruta_db()))
+        return jsonify(db.inicio())
 
     @app.get("/api/sugerir")
     @api
@@ -428,25 +449,25 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/api/categorias")
     @api
     def api_categorias():
-        return jsonify(gasto=db.listar_categorias(ruta_db(), "gasto"),
-                       ingreso=db.listar_categorias(ruta_db(), "ingreso"))
+        return jsonify(gasto=db.listar_categorias("gasto"),
+                       ingreso=db.listar_categorias("ingreso"))
 
     @app.post("/api/categorias")
     @api
     def api_crear_categoria():
         datos = cuerpo()
-        return jsonify(db.crear_categoria(ruta_db(), datos.get("tipo"), datos.get("nombre"))), 201
+        return jsonify(db.crear_categoria(datos.get("tipo"), datos.get("nombre"))), 201
 
     @app.patch("/api/categorias/<tipo>/<nombre>")
     @api
     def api_renombrar_categoria(tipo, nombre):
-        return jsonify(db.renombrar_categoria(ruta_db(), tipo, nombre, cuerpo().get("nombre")))
+        return jsonify(db.renombrar_categoria(tipo, nombre, cuerpo().get("nombre")))
 
     @app.delete("/api/categorias/<tipo>/<nombre>")
     @api
     def api_borrar_categoria(tipo, nombre):
         try:
-            db.borrar_categoria(ruta_db(), tipo, nombre)
+            db.borrar_categoria(tipo, nombre)
         except db.ErrorCategoria as e:
             estado = 409 if "Todavía tiene" in str(e) else 400
             return jsonify(error=str(e)), estado
@@ -457,20 +478,20 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/api/topes")
     @api
     def listar_topes():
-        return jsonify(db.estado_topes(ruta_db(), mes_valido(request.args.get("mes"))))
+        return jsonify(db.estado_topes(mes_valido(request.args.get("mes"))))
 
     @app.put("/api/topes/<categoria>")
     @api
     def guardar_tope(categoria):
         if categoria == SIN_CLASIFICAR or categoria not in cats("gasto"):
             raise ErrorDatos("Categoría no válida.")
-        db.guardar_tope(ruta_db(), categoria, monto_a_centimos(cuerpo().get("monto")))
-        return jsonify(db.estado_topes(ruta_db(), db.hoy()[:7], [categoria])[0])
+        db.guardar_tope(categoria, monto_a_centimos(cuerpo().get("monto")))
+        return jsonify(db.estado_topes(db.hoy()[:7], [categoria])[0])
 
     @app.delete("/api/topes/<categoria>")
     @api
     def borrar_tope(categoria):
-        if not db.borrar_tope(ruta_db(), categoria):
+        if not db.borrar_tope(categoria):
             return jsonify(error="No existe."), 404
         return "", 204
 
@@ -503,13 +524,13 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/api/fijos")
     @api
     def listar_fijos():
-        return jsonify(db.listar_fijos(ruta_db()))
+        return jsonify(db.listar_fijos())
 
     @app.post("/api/fijos")
     @api
     def crear_fijo():
         c = leer_fijo(cuerpo(), exigir=True)
-        fijo = db.crear_fijo(ruta_db(), c["concepto"], c["monto_centimos"], c["categoria"], c["dia"])
+        fijo = db.crear_fijo(c["concepto"], c["monto_centimos"], c["categoria"], c["dia"])
         return jsonify(fijo), 201
 
     @app.patch("/api/fijos/<int:fijo_id>")
@@ -518,7 +539,7 @@ def create_app(config: dict | None = None) -> Flask:
         campos = leer_fijo(cuerpo(), exigir=False)
         if not campos:
             raise ErrorDatos("No hay nada que cambiar.")
-        fijo = db.actualizar_fijo(ruta_db(), fijo_id, campos)
+        fijo = db.actualizar_fijo(fijo_id, campos)
         if fijo is None:
             return jsonify(error="No existe."), 404
         return jsonify(fijo)
@@ -526,7 +547,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.delete("/api/fijos/<int:fijo_id>")
     @api
     def borrar_fijo(fijo_id):
-        if not db.borrar_fijo(ruta_db(), fijo_id):
+        if not db.borrar_fijo(fijo_id):
             return jsonify(error="No existe."), 404
         return "", 204
 
@@ -536,8 +557,8 @@ def create_app(config: dict | None = None) -> Flask:
     @api
     def listar_deudas():
         pagadas = request.args.get("pagadas") == "1"
-        return jsonify(deudas=db.listar_deudas(ruta_db(), incluir_pagadas=pagadas),
-                       resumen=db.resumen_deudas(ruta_db()))
+        return jsonify(deudas=db.listar_deudas(incluir_pagadas=pagadas),
+                       resumen=db.resumen_deudas())
 
     @app.post("/api/deudas")
     @api
@@ -549,14 +570,14 @@ def create_app(config: dict | None = None) -> Flask:
         persona = texto_valido(datos.get("persona"), "el nombre de la persona", 60)
         nota = str(datos.get("nota") or "").strip()[:120]
         fecha = fecha_valida(datos["fecha"]) if datos.get("fecha") else None
-        deuda = db.crear_deuda(ruta_db(), persona, monto_a_centimos(datos.get("monto")), tipo, nota, fecha)
+        deuda = db.crear_deuda(persona, monto_a_centimos(datos.get("monto")), tipo, nota, fecha)
         return jsonify(deuda), 201
 
     @app.post("/api/deudas/<int:deuda_id>/pagar")
     @api
     def pagar_deuda(deuda_id):
         try:
-            deuda = db.pagar_deuda(ruta_db(), deuda_id)
+            deuda = db.pagar_deuda(deuda_id)
         except ValueError as e:
             return jsonify(error=str(e)), 409
         if deuda is None:
@@ -566,7 +587,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.delete("/api/deudas/<int:deuda_id>")
     @api
     def borrar_deuda(deuda_id):
-        if not db.borrar_deuda(ruta_db(), deuda_id):
+        if not db.borrar_deuda(deuda_id):
             return jsonify(error="No existe."), 404
         return "", 204
 
@@ -575,7 +596,7 @@ def create_app(config: dict | None = None) -> Flask:
     @app.get("/api/historial")
     @api
     def api_historial():
-        return jsonify(db.listar_borrados(ruta_db()))
+        return jsonify(db.listar_borrados())
 
     return app
 

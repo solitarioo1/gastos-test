@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_iconos.html" import logo, icono %}
+{% from "_iconos.html" import icono, ilustracion_billetera %}
 {% block titulo %}Entrar · {{ app_nombre }}{% endblock %}
 {% block contenido %}
 <div class="acceso" id="acceso-tarjeta" data-activo="entrar">
@@ -9,12 +9,12 @@
          desliza de un lado al otro para cubrir el formulario que no toca ahora. -->
     <div class="acceso-mensaje" id="acceso-mensaje">
       <div class="acceso-mensaje-cara" data-cara="entrar">
-        {{ logo(48) }}
+        {{ ilustracion_billetera() }}
         <h1 class="acceso-titulo">{{ app_nombre }}</h1>
         <p>Anota tus gastos en una línea y sabe cuánto te queda.</p>
       </div>
       <div class="acceso-mensaje-cara" data-cara="registro">
-        {{ icono('candado', 40) }}
+        {{ ilustracion_billetera() }}
         <h1 class="acceso-titulo">Por ahora, solo yo</h1>
         <p>{{ app_nombre }} todavía es de uso personal. El registro no está abierto: cuando lo esté, va a ser por invitación.</p>
       </div>
@@ -37,17 +37,30 @@
               <label for="usuario" class="form-label">Usuario</label>
               <input id="usuario" name="usuario" type="text" class="form-control form-control-lg mb-3" autocomplete="username" autofocus required>
               <label for="clave" class="form-label">Tu clave</label>
-              <input id="clave" name="clave" type="password" class="form-control form-control-lg" autocomplete="current-password" required>
+              <div class="acceso-campo-clave">
+                <input id="clave" name="clave" type="password" class="form-control form-control-lg" autocomplete="current-password" required>
+                <button type="button" class="acceso-ver-clave" id="ver-clave" aria-label="Mostrar clave" aria-pressed="false">
+                  {{ icono('ojo', 20) }}
+                </button>
+              </div>
               {% if error %}<div class="text-danger mt-2" role="alert">{{ error }}</div>{% endif %}
               <button type="submit" class="btn btn-primary btn-lg w-100 mt-3">Entrar</button>
             </form>
           </div>
 
           <div class="acceso-panel" id="panel-registro" role="tabpanel" aria-labelledby="tab-registro" inert>
+            <h2 class="acceso-formulario-titulo">Registrarse</h2>
+            <div class="acceso-vista-previa" aria-hidden="true">
+              <label class="form-label">Usuario</label>
+              <input type="text" class="form-control" disabled>
+              <label class="form-label">Correo</label>
+              <input type="email" class="form-control" disabled>
+              <label class="form-label">Clave</label>
+              <input type="password" class="form-control" disabled>
+            </div>
             <div class="acceso-registro">
-              <div class="acceso-registro-icono">{{ icono('candado', 26) }}</div>
-              <h2 class="acceso-registro-titulo">Por ahora, uso personal</h2>
-              <p class="text-secondary">{{ app_nombre }} todavía no tiene registro abierto: es una app de uso personal. Cuando se abra, va a ser por invitación.</p>
+              <div class="acceso-registro-icono">{{ icono('candado', 22) }}</div>
+              <p class="text-secondary">Todavía no está abierto: {{ app_nombre }} es de uso personal por ahora. Cuando se abra, va a ser por invitación.</p>
               <button type="button" class="btn btn-lg w-100" id="volver-entrar">Volver a entrar</button>
             </div>
           </div>
@@ -59,5 +72,5 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script src="{{ url_for('static', filename='login.js') }}"></script>
+<script src="{{ estatico('login.js') }}"></script>
 {% endblock %}

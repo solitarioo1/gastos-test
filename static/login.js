@@ -37,6 +37,16 @@ tabRegistro.addEventListener("click", () => mostrar("registro"));
 botonCambiar.addEventListener("click", () => mostrar(raiz.dataset.activo === "registro" ? "entrar" : "registro"));
 $("volver-entrar").addEventListener("click", () => mostrar("entrar"));
 
+const botonVerClave = $("ver-clave");
+const campoClave = $("clave");
+botonVerClave.addEventListener("click", () => {
+  const visible = campoClave.type === "text";
+  campoClave.type = visible ? "password" : "text";
+  botonVerClave.setAttribute("aria-pressed", String(!visible));
+  botonVerClave.setAttribute("aria-label", visible ? "Mostrar clave" : "Ocultar clave");
+  botonVerClave.querySelector("use").setAttribute("href", visible ? "#i-ojo" : "#i-ojo-cerrado");
+});
+
 let anchoAnterior = window.innerWidth;
 window.addEventListener("resize", () => {
   // si la ventana cambia de tamaño (o gira el celular), recalcula sin animación

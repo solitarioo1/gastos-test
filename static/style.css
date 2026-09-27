@@ -137,6 +137,7 @@ body.menu-movil-abierto .fondo-menu-movil { opacity: 1; visibility: visible; tra
   justify-content: center; gap: 6px; opacity: 0; pointer-events: none; transition: opacity .3s ease;
 }
 .acceso-mensaje-cara .logo { margin-bottom: 6px; }
+.acceso-mensaje-cara .acceso-ilustracion { margin-bottom: 10px; opacity: .95; }
 .acceso-mensaje-cara .acceso-titulo { color: #fff; }
 .acceso-mensaje-cara p { opacity: .92; margin: 0; max-width: 30ch; }
 #acceso-tarjeta[data-activo="entrar"] .acceso-mensaje-cara[data-cara="entrar"],
@@ -144,7 +145,7 @@ body.menu-movil-abierto .fondo-menu-movil { opacity: 1; visibility: visible; tra
   opacity: 1; pointer-events: auto;
 }
 .acceso-mensaje-boton {
-  position: relative; z-index: 1; margin-top: 20px; padding: 10px 28px; border-radius: 999px;
+  position: relative; z-index: 1; margin-top: 20px; padding: 10px 28px; border-radius: 10px;
   border: 1.5px solid rgba(255, 255, 255, .55); background: transparent; color: #fff;
   font-weight: 600; cursor: pointer; transition: background-color .2s ease;
 }
@@ -173,9 +174,33 @@ body.menu-movil-abierto .fondo-menu-movil { opacity: 1; visibility: visible; tra
 .acceso-panel { flex: 0 0 100%; min-width: 0; padding: 28px 24px 24px; box-sizing: border-box; }
 .acceso-formulario-titulo { font-size: 1.3rem; font-weight: 800; margin-bottom: 16px; }
 
-.acceso-registro { text-align: center; padding: 8px 4px 4px; }
+/* Inputs del login en línea (sin caja), más finos que el resto de la app. */
+.acceso-panel .form-control {
+  border: 0; border-bottom: 2px solid var(--rejilla); border-radius: 0;
+  background: transparent; padding: 8px 2px; box-shadow: none;
+}
+.acceso-panel .form-control:focus {
+  border-bottom-color: var(--tblr-primary); box-shadow: none; outline: none;
+}
+.acceso-panel .form-label { font-size: .8rem; font-weight: 600; color: var(--tinta-suave); }
+
+.acceso-campo-clave { position: relative; }
+.acceso-campo-clave .form-control { padding-right: 30px; }
+.acceso-ver-clave {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 30px;
+  display: grid; place-items: center; background: none; border: 0; padding: 0;
+  color: var(--tinta-suave); cursor: pointer;
+}
+.acceso-ver-clave:hover { color: var(--tblr-primary); }
+
+/* Vista previa (deshabilitada) del formulario de registro: no funciona todavía,
+   solo muestra cómo se va a ver cuando se abra. */
+.acceso-vista-previa { opacity: .45; margin-bottom: 18px; pointer-events: none; }
+.acceso-vista-previa .form-control { margin-bottom: 10px; }
+
+.acceso-registro { text-align: center; padding: 0 4px 4px; border-top: 1px solid var(--rejilla); padding-top: 16px; }
 .acceso-registro-icono {
-  display: inline-grid; place-items: center; width: 52px; height: 52px; margin-bottom: 12px;
+  display: inline-grid; place-items: center; width: 40px; height: 40px; margin-bottom: 10px;
   border-radius: 50%; background: rgba(var(--tblr-primary-rgb), .08); color: var(--tinta-suave);
 }
 .acceso-registro-titulo { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }

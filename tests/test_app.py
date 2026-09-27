@@ -1,8 +1,9 @@
 import os
 import sys
-import tempfile
 import time
 import unittest
+import uuid
+from contextlib import closing
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
@@ -19,18 +20,39 @@ def congelar(anio, mes, dia, hora=12):
 
 
 class BaseApp(unittest.TestCase):
+    """Cada clase de test tiene su propio esquema de Postgres, creado una sola
+    vez (setUpClass) y borrado al final (tearDownClass). Crear/borrar el
+    esquema completo en cada test individual era correcto pero carísimo
+    contra un Postgres remoto (~12s por test); en vez de eso, cada test
+    arranca con las tablas vacías (TRUNCATE), mucho más barato."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.schema = f"test_{uuid.uuid4().hex[:12]}"
+        db.configurar(cls.schema)
+        db.iniciar()
+
+    @classmethod
+    def tearDownClass(cls):
+        with closing(db.conectar()) as con, con.cursor() as cur:
+            cur.execute(f'DROP SCHEMA IF EXISTS "{cls.schema}" CASCADE')
+            con.commit()
+
     def setUp(self):
-        self.dir = tempfile.TemporaryDirectory()
+        db.configurar(self.schema)
+        with closing(db.conectar()) as con, con.cursor() as cur:
+            cur.execute(
+                "TRUNCATE gastos, ingresos, topes, fijos, deudas, categorias, aprendido, borrados"
+                " RESTART IDENTITY CASCADE"
+            )
+            con.commit()
         self.app = create_app({
-            "DB_PATH": os.path.join(self.dir.name, "t.db"),
+            "PG_SCHEMA": self.schema,
             "AUTENTICAR": lambda usuario, clave: (usuario, clave) == ("prueba", "clave-de-prueba"),
             "SECRET_KEY": "secreto-de-prueba",
             "TESTING": True,
         })
         self.cli = self.app.test_client()
-
-    def tearDown(self):
-        self.dir.cleanup()
 
     def entrar(self):
         return self.cli.post("/login", data={"usuario": "prueba", "clave": "clave-de-prueba"})
@@ -657,24 +679,27 @@ class TestCategorias(BaseLogueado):
         self.assertEqual(self.cli.put("/api/topes/Sin%20clasificar", json={"monto": 50}).status_code, 400)
 
     def test_migracion_de_otros_a_sin_clasificar(self):
-        import sqlite3
-        ruta = self.app.config["DB_PATH"]
-        con = sqlite3.connect(ruta)
-        con.execute("INSERT INTO gastos (fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado)"
-                    " VALUES ('2026-09-01', 'x 5', 'x', 500, 'Otros', 'Otros', '2026-09-01T00:00:00')")
-        con.execute("INSERT INTO ingresos (fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado)"
-                    " VALUES ('2026-09-01', 'y 5', 'y', 500, 'Otros ingresos', 'Otros ingresos', '2026-09-01T00:00:00')")
-        con.execute("INSERT INTO topes (categoria, monto_centimos) VALUES ('Otros', 1000)")
-        con.commit()
-        con.close()
-        db.iniciar(ruta)
-        db.iniciar(ruta)  # repetir no rompe nada
-        con = sqlite3.connect(ruta)
-        self.assertEqual(con.execute("SELECT categoria, categoria_auto FROM gastos").fetchone(),
-                         ("Sin clasificar", "Sin clasificar"))
-        self.assertEqual(con.execute("SELECT categoria FROM ingresos").fetchone()[0], "Sin clasificar")
-        self.assertEqual(con.execute("SELECT COUNT(*) FROM topes").fetchone()[0], 0)
-        con.close()
+        with closing(db.conectar()) as con, con.cursor() as cur:
+            cur.execute(
+                "INSERT INTO gastos (fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado)"
+                " VALUES ('2026-09-01', 'x 5', 'x', 500, 'Otros', 'Otros', '2026-09-01T00:00:00')"
+            )
+            cur.execute(
+                "INSERT INTO ingresos (fecha, texto, concepto, monto_centimos, categoria, categoria_auto, creado)"
+                " VALUES ('2026-09-01', 'y 5', 'y', 500, 'Otros ingresos', 'Otros ingresos', '2026-09-01T00:00:00')"
+            )
+            cur.execute("INSERT INTO topes (categoria, monto_centimos) VALUES ('Otros', 1000)")
+            con.commit()
+        db.iniciar()
+        db.iniciar()  # repetir no rompe nada
+        with closing(db.conectar()) as con, con.cursor() as cur:
+            cur.execute("SELECT categoria, categoria_auto FROM gastos")
+            fila = cur.fetchone()
+            self.assertEqual((fila["categoria"], fila["categoria_auto"]), ("Sin clasificar", "Sin clasificar"))
+            cur.execute("SELECT categoria FROM ingresos")
+            self.assertEqual(cur.fetchone()["categoria"], "Sin clasificar")
+            cur.execute("SELECT COUNT(*) AS n FROM topes")
+            self.assertEqual(cur.fetchone()["n"], 0)
 
 
 class TestAprendizaje(BaseLogueado):

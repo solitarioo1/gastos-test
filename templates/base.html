@@ -7,8 +7,8 @@
   <meta name="theme-color" content="#178a5f">
   <title>{% block titulo %}{{ app_nombre }}{% endblock %}</title>
   <link rel="manifest" href="{{ url_for('manifest') }}">
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='icons/icon-192.png') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <link rel="icon" type="image/png" href="{{ estatico('icons/icon-192.png') }}">
+  <link rel="apple-touch-icon" href="{{ estatico('icons/icon-192.png') }}">
   <script>
     (function () {
       try {
@@ -18,8 +18,8 @@
       } catch (e) {}
     })();
   </script>
-  <link rel="stylesheet" href="{{ url_for('static', filename='vendor/tabler/tabler.min.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ estatico('vendor/tabler/tabler.min.css') }}">
+  <link rel="stylesheet" href="{{ estatico('style.css') }}">
 </head>
 <body>
   {{ sprite() }}
@@ -140,8 +140,8 @@
   <div id="avisos" class="avisos" role="status" aria-live="polite"></div>
 
   <script>window.TG = { categorias: {{ categorias | tojson }}, categoriasIngreso: {{ categorias_ingreso | tojson }}, hoy: {{ hoy | default('') | tojson }}, masUsadas: {{ mas_usadas | default({'gasto': [], 'ingreso': []}) | tojson }} };</script>
-  <script src="{{ url_for('static', filename='vendor/tabler/tabler.min.js') }}"></script>
-  <script src="{{ url_for('static', filename='common.js') }}"></script>
+  <script src="{{ estatico('vendor/tabler/tabler.min.js') }}"></script>
+  <script src="{{ estatico('common.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -24,6 +24,8 @@
   <symbol id="i-cerrar" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
   <symbol id="i-historial" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 3"/></symbol>
   <symbol id="i-candado" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></symbol>
+  <symbol id="i-ojo" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-ojo-cerrado" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/><path d="M4 4l16 16"/></symbol>
 </svg>
 {%- endmacro %}
 
@@ -33,4 +35,19 @@
 
 {% macro logo(tam=32) -%}
 <svg class="logo" xmlns="http://www.w3.org/2000/svg" width="{{ tam }}" height="{{ tam }}" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><rect width="64" height="64" rx="16" fill="#178a5f"/><text x="32" y="43" text-anchor="middle" font-family="system-ui,-apple-system,'Segoe UI',sans-serif" font-size="30" font-weight="800" fill="#fff">S/</text></svg>
+{%- endmacro %}
+
+{# Ilustración del login: billetera + moneda, trazo grueso a juego con el resto de íconos. #}
+{% macro ilustracion_billetera(tam=132) -%}
+<svg class="acceso-ilustracion" xmlns="http://www.w3.org/2000/svg" width="{{ tam }}" height="{{ tam }}" viewBox="0 0 140 140" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  <path d="M40 52V38a6 6 0 0 1 6-6h34a6 6 0 0 1 6 6v14" opacity=".55"/>
+  <rect x="24" y="52" width="92" height="62" rx="10"/>
+  <path d="M24 70h92"/>
+  <circle cx="98" cy="83" r="5.5" fill="currentColor" stroke="none"/>
+  <circle cx="106" cy="28" r="15"/>
+  <path d="M106 21v14M99 28h14"/>
+  <circle cx="26" cy="22" r="2.4" fill="currentColor" stroke="none"/>
+  <circle cx="14" cy="40" r="1.7" fill="currentColor" stroke="none"/>
+  <circle cx="38" cy="14" r="1.7" fill="currentColor" stroke="none"/>
+</svg>
 {%- endmacro %}
