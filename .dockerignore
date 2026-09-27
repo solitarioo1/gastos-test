@@ -1,0 +1,11 @@
+.git
+.env
+gastos.db
+*.db
+__pycache__/
+*.pyc
+.venv/
+tests/
+sql/
+plan.md
+CLAUDE.md
