@@ -5,6 +5,7 @@
 gastos.db
 *.db
 .env
+.env.vps
 __pycache__/
 *.pyc
 .venv/

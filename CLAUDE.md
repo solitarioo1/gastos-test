@@ -91,14 +91,23 @@ de escribir esto).
   interno** de Docker (nombre del servicio dentro de la red interna de
   Easypanel, normalmente puerto 5432) en vez de la IP pública — es más
   rápido y no sale a internet para hablar con su propia base. El nombre
-  interno exacto hay que confirmarlo en la página del servicio Postgres en
-  Easypanel (sección de conexión interna); antes se vio algo como
-  `bd_shp_mapas_gastos-db:5432` al configurar la base, pero debe verificarse
-  ahí, no asumirse. **No es `localhost`**: aunque la app y Postgres corran en
-  el mismo VPS, cada uno vive en su propio contenedor Docker con su propia
-  red — `localhost` dentro del contenedor de la app apunta a sí mismo, no al
-  de Postgres. Hace falta el nombre del servicio en la red interna de
-  Easypanel, no la IP pública ni `localhost`.
+  interno en Easypanel es el **nombre del servicio** tal cual aparece en ese
+  proyecto (confirmado con otro proyecto del usuario donde el servicio se
+  llama literal `postgres` y `DB_HOST=postgres` funciona). Para esta base,
+  **confirmado directamente en el panel de Easypanel** (Credentials de ese
+  servicio Postgres): `Internal Host = bd_shp_mapas_gastos-db`,
+  `Internal Port = 5432`. En producción usar:
+  ```
+  PG_HOST=bd_shp_mapas_gastos-db
+  PG_PORT=5432
+  ```
+  Solo funciona si la app de TusGastos está en el **mismo proyecto** de
+  Easypanel que ese servicio Postgres (la conexión por nombre interno solo
+  funciona dentro del mismo proyecto).
+  **No es `localhost`**: aunque la app y Postgres corran en el mismo VPS,
+  cada uno vive en su propio contenedor Docker con su propia red —
+  `localhost` dentro del contenedor de la app apunta a sí mismo, no al de
+  Postgres.
 
 ## Cosas ya resueltas, no repetir el error
 
