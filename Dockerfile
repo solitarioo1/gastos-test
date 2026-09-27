@@ -10,4 +10,4 @@ COPY . .
 ENV PORT=5000
 EXPOSE 5000
 
-CMD gunicorn --bind 0.0.0.0:${PORT} --workers 2 --timeout 30 wsgi:app
+CMD gunicorn --bind 0.0.0.0:${PORT} --workers 1 --threads 4 --timeout 30 wsgi:app

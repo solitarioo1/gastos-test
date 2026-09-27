@@ -94,7 +94,11 @@ de escribir esto).
   interno exacto hay que confirmarlo en la página del servicio Postgres en
   Easypanel (sección de conexión interna); antes se vio algo como
   `bd_shp_mapas_gastos-db:5432` al configurar la base, pero debe verificarse
-  ahí, no asumirse.
+  ahí, no asumirse. **No es `localhost`**: aunque la app y Postgres corran en
+  el mismo VPS, cada uno vive en su propio contenedor Docker con su propia
+  red — `localhost` dentro del contenedor de la app apunta a sí mismo, no al
+  de Postgres. Hace falta el nombre del servicio en la red interna de
+  Easypanel, no la IP pública ni `localhost`.
 
 ## Cosas ya resueltas, no repetir el error
 
@@ -111,3 +115,9 @@ de escribir esto).
   auditoría).
 - `/static/*`, `/api/*` y `/login` deben llevar `Cache-Control: no-store`
   (si no, el navegador sirve CSS/JS viejo tras editar).
+- Gunicorn en el `Dockerfile` usa `--workers 1 --threads 4` a propósito: el
+  bloqueo por intentos fallidos de login (`fallos_login` en `app.py`) vive en
+  memoria del proceso; con más de un worker cada proceso llevaría su propio
+  conteo y el bloqueo se volvería inconsistente. Si algún día hace falta más
+  capacidad, ese conteo tendría que moverse a Postgres/Redis antes de subir
+  el número de workers.
